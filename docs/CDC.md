@@ -4,7 +4,7 @@ Version 0.1, 6 septembre 2026.
 
 ## 1. Vision
 
-Un outil interne qui mesure, chaque jour, si un site (Gatto.city en premier) est cité ou mentionné par les assistants IA (ChatGPT, Claude, Perplexity) sur une liste de requêtes cibles, et qui montre l'évolution dans le temps face aux concurrents.
+Un outil interne qui mesure, chaque jour, si un site (Rablab en premier) est cité ou mentionné par les assistants IA (ChatGPT, Claude, Perplexity) sur une liste de requêtes cibles, et qui montre l'évolution dans le temps face aux concurrents.
 
 Équivalent maison du module "Monitor" de Qwairy. On construit tout nous-mêmes, sans SaaS GEO tiers. Les seules API consommées sont celles des fournisseurs de modèles, indispensables pour obtenir les réponses.
 
@@ -120,20 +120,28 @@ Composants shadcn attendus : Card, Table, Badge, Sheet (drawer), Tabs, Dialog, F
 - Les clés API ne transitent jamais côté client.
 - Page dashboard sous 1 s avec 90 jours d'historique (index sur `results(run_id, prompt_id, engine_id)` et `runs(started_at)`).
 
-## 10. Volume et coût par défaut
+## 10. Volume et coût (mesuré le 6 septembre 2026)
 
-Configuration de départ proposée, à ajuster après le premier mois :
+Coûts réels observés par réponse, recherche web incluse :
+
+| Moteur | Coût par réponse avec recherche | Sans recherche |
+|---|---|---|
+| ChatGPT gpt-5.5 | 0,10 à 0,14 USD | 0,006 USD |
+| ChatGPT gpt-5.4-mini | 0,02 USD | 0,003 USD |
+
+Le poste principal est le contenu des pages ramené par l'outil de recherche (5 000 à 15 000 tokens d'entrée par réponse), facturé au tarif du modèle. D'où le choix de gpt-5.4-mini par défaut pour ChatGPT.
+
+Configuration de départ :
 
 | Paramètre | Valeur |
 |---|---|
-| Prompts actifs | 30 |
-| Moteurs | 3 |
+| Prompts actifs | 22 (19 avec recherche web, 3 en mode mémoire) |
+| Moteurs | ChatGPT seul pour l'instant (Claude et Perplexity dès que les clés sont là) |
 | Répétitions par jour | 1 |
-| Appels par jour | 90 |
-| Coût unitaire estimé (recherche web + tokens) | 0,02 à 0,04 € |
-| Coût mensuel estimé | 55 à 110 € |
+| Coût mesuré par run complet, ChatGPT mini | 0,43 USD |
+| Coût mensuel estimé, ChatGPT mini, un run par jour | 12 € |
 
-Les coûts unitaires sont des ordres de grandeur, à vérifier sur les grilles tarifaires au moment de l'implémentation. Passer à 3 répétitions par jour multiplie par trois. Le compteur de coût du dashboard sert précisément à ne pas piloter à l'aveugle.
+Ajouter Claude Opus 5 (5 USD / 25 USD par million de tokens, 0,01 USD par recherche) coûterait environ 0,08 USD par réponse, soit 45 € par mois de plus. Claude Sonnet 5 ou Perplexity sonar sont à 0,02 à 0,03 USD par réponse. Le plafond de coût par run est fixé à 3 € par défaut.
 
 ## 11. Jalons
 
@@ -149,5 +157,26 @@ Chaque jalon est livrable et testable seul. On ne passe au suivant qu'après une
 
 - "Pas d'API externe" signifie pas de SaaS GEO tiers. Les API OpenAI, Anthropic et Perplexity sont bien utilisées.
 - Hébergement Vercel (sinon activer le plan de repli du point 6).
-- Projet initial : Gatto.city, prompts en français, localisation France.
+- Projet initial : Rablab (agence de marketing web, Montréal), concurrents Digitad, Adviso et My Little Big Web, prompts en français et en anglais, localisation Canada.
 - Nom de code du dépôt : `geo-monitor`.
+
+## 13. Décisions d'implémentation (jalon 1, 6 septembre 2026)
+
+- **Base locale** : PGlite (Postgres embarqué, dossier `.data/pglite`) quand `DATABASE_URL` est vide, migrations appliquées au démarrage. Même schéma Drizzle en production sur Postgres.
+- **Moteur mock** : fournisseur `mock` activé uniquement avec `GEO_MOCK_ENGINE=1` hors production, pour tester le pipeline complet (workflow, détection, dashboard) sans clés API.
+- **Modèles par défaut** : `gpt-5.5` (ChatGPT), `claude-opus-5` (Claude), `sonar` (Perplexity). Modifiables par moteur dans Paramètres.
+- **Perplexity** cherche toujours sur le web : les prompts en mode "mémoire seule" ne lui sont pas envoyés.
+- **Nouvelles tentatives** : 3 essais avec backoff dans l'appel moteur sur 429, 5xx et erreurs réseau, puis le résultat est stocké avec `error`. L'étape de workflow reste idempotente grâce à l'index unique (run, prompt, moteur, répétition).
+- **Authentification** : mot de passe unique `APP_PASSWORD`, cookie dérivé par hachage, vérifié dans `src/proxy.ts`. Le cron et les routes internes Workflow sont exclus.
+- **Coût** : estimé côté serveur à partir des tokens et du nombre de recherches, avec des tarifs indicatifs modifiables par moteur. Affiché en euros (taux fixe 0,92).
+
+## 14. Première mesure Rablab (6 septembre 2026, ChatGPT gpt-5.4-mini)
+
+| Indicateur | Valeur |
+|---|---|
+| Réponses analysées | 22 |
+| Taux de citation | 14 % (3 réponses) |
+| Taux de mention | 23 % (5 réponses) |
+| Share of voice | 27 % |
+
+Rablab est cité sur les prompts "audit technique SEO et migration", "formation SEO au Québec" (via la Rabacadémie) et "Google Partners in Montreal", mentionné en plus sur "agences de marketing web à Montréal" et "top SEO agencies in Quebec for e-commerce". Absent des prompts généralistes "meilleure agence SEO à Montréal" et de tous les prompts en mode mémoire. Digitad est le concurrent le plus visible (domaine cité 6 fois). Les sources dominantes sont clutch.co et bcorporation.net.

@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GEO Monitor
 
-## Getting Started
+Outil interne qui mesure chaque jour si un site est cité ou mentionné par ChatGPT, Claude et Perplexity sur une liste de prompts cibles, et suit l'évolution face aux concurrents. Cahier des charges : `docs/CDC.md`.
 
-First, run the development server:
+## Stack
+
+Next.js 16 (App Router), TypeScript, Tailwind v4 + shadcn/ui, Postgres + Drizzle (PGlite embarqué en local), Vercel AI SDK, Vercel Workflow pour les runs durables, Vercel Cron pour le déclenchement quotidien, Vitest.
+
+## Démarrage
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local   # renseigner au moins une clé API et APP_PASSWORD
+pnpm seed                    # projet Rablab, concurrents, moteurs, 22 prompts
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sans `DATABASE_URL`, la base est un Postgres embarqué dans `.data/pglite`, migré automatiquement au démarrage.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Commande | Rôle |
+|---|---|
+| `pnpm run:once --prompt "..." [--engine anthropic] [--no-search]` | Teste un prompt sur les moteurs, sans base, affiche réponse, sources, coût et détection |
+| `pnpm run:full` | Run complet séquentiel en ligne de commande (sans workflow) |
+| `pnpm seed` | Données initiales, idempotent |
+| `pnpm test` | Tests unitaires (règles de détection) |
+| `pnpm typecheck`, `pnpm lint`, `pnpm build` | Qualité |
+| `pnpm db:generate` | Génère une migration après modification de `src/db/schema.ts` |
+| `pnpm db:migrate` | Applique les migrations sur `DATABASE_URL` (production) |
 
-## Learn More
+Un run manuel depuis l'UI ou via `POST /api/runs` avec `{ "projectId": "..." }` passe par le workflow durable. Le cron quotidien appelle `GET /api/cron/daily` avec `Authorization: Bearer $CRON_SECRET`.
 
-To learn more about Next.js, take a look at the following resources:
+## Tester sans clés API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+GEO_MOCK_ENGINE=1 pnpm seed   # ajoute un moteur "Mock (test)"
+GEO_MOCK_ENGINE=1 pnpm dev    # les runs utilisent des réponses simulées
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Le moteur mock est ignoré en production quoi qu'il arrive.
 
-## Deploy on Vercel
+## Déploiement Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Créer une base Postgres (Neon via le Marketplace) et renseigner `DATABASE_URL`.
+2. Renseigner `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`, `CRON_SECRET`, `APP_PASSWORD`.
+3. `pnpm db:migrate` puis `pnpm seed` contre la base de production (une fois).
+4. Déployer : `vercel.json` déclare le cron quotidien à 06:00 UTC. Vercel ajoute automatiquement l'en-tête `Authorization` avec `CRON_SECRET`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Structure
+
+```
+src/db/            schéma Drizzle et client (PGlite local, postgres-js en prod)
+src/lib/detection  règles de citation et de mention, testées
+src/lib/engines    appel uniforme des fournisseurs via l'AI SDK
+src/lib/runs       planification, exécution idempotente d'une tâche, détections
+src/lib/queries    requêtes du dashboard
+src/lib/actions    server actions (prompts, projet, concurrents, moteurs, auth)
+src/workflows      orchestration durable (lots de 3, plafond de coût)
+src/app/api        POST /api/runs, GET /api/cron/daily
+scripts/           seed, run:once, run:full
+```

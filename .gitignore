@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.data/
+.workflow-data/
+/.swc
+# Routes générées par workflow/next
+src/app/.well-known/
+
+# Secrets locaux
+.env
+.next-*/
+.workflow-data-*/
+.vitest/
