@@ -184,3 +184,7 @@ Rablab est cité sur les prompts "audit technique SEO et migration", "formation 
 ## 15. Inspection d'URL (lot ajouté le 7 septembre 2026)
 
 Fonction "Search Console" : coller une URL, obtenir son accessibilité aux robots IA, une fiche de la page, des questions générées et un test de citation en direct. Conception, coûts et garde-fous détaillés dans `docs/inspection-url.md`. Implémentation : `src/lib/inspect/*`, workflow `src/workflows/inspection-workflow.ts`, tables `inspections` et `inspection_answers`, page `/inspect`.
+
+## 16. Déploiement (8 septembre 2026)
+
+Région `iad1`, Postgres Neon en pool, migrations au build, mot de passe obligatoire en production. **Cron désactivé** à la demande de Timothée : les runs restent manuels tant que le coût par run n'est pas arbitré (Claude sur Haiku 4.5, 2 recherches, environ 0,07 USD par réponse).

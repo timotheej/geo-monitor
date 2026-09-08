@@ -46,10 +46,14 @@ Le moteur mock est ignoré en production quoi qu'il arrive.
 
 ## Déploiement Vercel
 
-1. Créer une base Postgres (Neon via le Marketplace) et renseigner `DATABASE_URL`.
-2. Renseigner `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`, `CRON_SECRET`, `APP_PASSWORD`.
-3. `pnpm db:migrate` puis `pnpm seed` contre la base de production (une fois).
-4. Déployer : `vercel.json` déclare le cron quotidien à 06:00 UTC. Vercel ajoute automatiquement l'en-tête `Authorization` avec `CRON_SECRET`.
+1. Importer le dépôt dans Vercel (framework Next.js détecté, Fluid compute actif par défaut). La région est fixée à `iad1` dans `vercel.json`, celle du backend Workflow.
+2. Ajouter une base Postgres Neon depuis le Marketplace, région US East (Virginie) pour rester à côté des fonctions, et renseigner `DATABASE_URL` avec l'URL "pooled".
+3. Variables d'environnement : `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` (au moins une), `CRON_SECRET`, `APP_PASSWORD`. Sans `APP_PASSWORD`, la production répond 503.
+4. Le script `vercel-build` applique les migrations Drizzle avant `next build`. Après le premier déploiement, exécuter le seed une fois contre la base de production : `DATABASE_URL=... pnpm seed`.
+5. Aucun cron n'est activé pour l'instant : les runs se lancent depuis l'interface ou via `POST /api/runs`. Pour activer le run quotidien, ajouter dans `vercel.json` : `"crons": [{ "path": "/api/cron/daily", "schedule": "0 11 * * *" }]` (11 h UTC, soit 7 h à Montréal). Vercel ajoute lui-même l'en-tête `Authorization: Bearer $CRON_SECRET`.
+6. Workflow utilise automatiquement le monde Vercel (stockage et file d'attente gérés). Les runs sont visibles dans l'onglet Workflow du projet Vercel, ou via `npx workflow web --backend vercel`.
+
+Durées : chaque étape de workflow est un appel moteur (5 à 60 s). Le maximum par défaut de Fluid compute (300 s) couvre les nouvelles tentatives. Une inspection (étape A) tient dans une server action de moins de 30 s.
 
 ## Structure
 

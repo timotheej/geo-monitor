@@ -16,7 +16,8 @@
     "run:full": "tsx --tsconfig tsconfig.scripts.json scripts/run-full.ts",
     "stats": "tsx --tsconfig tsconfig.scripts.json scripts/stats.ts",
     "inspect": "tsx --tsconfig tsconfig.scripts.json scripts/inspect.ts",
-    "engine:set": "tsx --tsconfig tsconfig.scripts.json scripts/engine-set.ts"
+    "engine:set": "tsx --tsconfig tsconfig.scripts.json scripts/engine-set.ts",
+    "vercel-build": "drizzle-kit migrate && next build"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.49",

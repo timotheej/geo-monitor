@@ -4,7 +4,11 @@ import { AUTH_COOKIE, sessionToken } from "@/lib/auth";
 /** Protège toute l'app par mot de passe. Le cron et les routes internes Workflow ont leur propre secret. */
 export async function proxy(request: NextRequest) {
   const expected = process.env.APP_PASSWORD;
-  if (!expected) return NextResponse.next();
+  if (!expected) {
+    // En production, pas de mot de passe = pas d'accès. En local, l'application reste ouverte.
+    if (process.env.NODE_ENV === "production") return NextResponse.json({ error: "APP_PASSWORD manquant" }, { status: 503 });
+    return NextResponse.next();
+  }
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (token && token === (await sessionToken(expected))) return NextResponse.next();
   // Scripts et intégrations : le secret du cron donne accès aux routes API.

@@ -13,7 +13,11 @@ async function create(): Promise<Db> {
   const url = process.env.DATABASE_URL;
   if (url) {
     const { drizzle } = await import("drizzle-orm/postgres-js");
-    return drizzle(url, { schema }) as unknown as Db;
+    // Serverless : peu de connexions par instance, pas de requêtes préparées (compatible pgbouncer et Neon pooler).
+    return drizzle({ connection: { url, max: 3, idle_timeout: 20, connect_timeout: 10, prepare: false }, schema }) as unknown as Db;
+  }
+  if (process.env.NODE_ENV === "production" && process.env.VERCEL) {
+    throw new Error("DATABASE_URL manquant : PGlite n'est pas utilisable sur Vercel, configurer une base Postgres");
   }
   // Local : Postgres embarqué, migrations appliquées au démarrage.
   // Plusieurs workers de build ouvrant le même dossier corrompent la base : on refuse net.
