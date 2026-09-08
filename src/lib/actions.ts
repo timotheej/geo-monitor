@@ -113,6 +113,8 @@ const projectSchema = z.object({
   locale: z.string().trim().min(2),
   repeats: z.coerce.number().int().min(1).max(10),
   costCapEur: z.coerce.number().min(0.5).max(500),
+  inspectionCostCapEur: z.coerce.number().min(0.1).max(50).default(0.5),
+  inspectionsPerDay: z.coerce.number().int().min(1).max(200).default(20),
 });
 
 export async function updateProject(projectId: string, input: Record<string, unknown>) {

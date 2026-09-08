@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   PlayCircle,
+  ScanSearch,
   Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/prompts", label: "Prompts", icon: MessageSquareText },
   { href: "/runs", label: "Runs", icon: PlayCircle },
+  { href: "/inspect", label: "Inspecter", icon: ScanSearch },
   { href: "/settings", label: "Paramètres", icon: Settings2 },
 ] as const;
 

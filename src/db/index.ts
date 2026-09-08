@@ -16,10 +16,16 @@ async function create(): Promise<Db> {
     return drizzle(url, { schema }) as unknown as Db;
   }
   // Local : Postgres embarqué, migrations appliquées au démarrage.
+  // Plusieurs workers de build ouvrant le même dossier corrompent la base : on refuse net.
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    throw new Error("PGlite ne doit pas être ouvert pendant le build : la page doit être dynamique (export const dynamic = \"force-dynamic\")");
+  }
   const { drizzle } = await import("drizzle-orm/pglite");
   const { migrate } = await import("drizzle-orm/pglite/migrator");
-  const { mkdir } = await import("node:fs/promises");
-  await mkdir(PGLITE_DIR, { recursive: true });
+  if (!PGLITE_DIR.startsWith("memory://")) {
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(PGLITE_DIR, { recursive: true });
+  }
   const db = drizzle({ connection: { dataDir: PGLITE_DIR }, schema });
   await migrate(db, { migrationsFolder: "./drizzle" });
   return db as unknown as Db;

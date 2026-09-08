@@ -10,6 +10,7 @@ function Tile({
   hint,
   accent,
   empty,
+  sub,
 }: {
   label: string;
   value: string;
@@ -17,6 +18,7 @@ function Tile({
   hint: string;
   accent?: boolean;
   empty?: boolean;
+  sub?: string;
 }) {
   const d = formatDelta(delta);
   return (
@@ -42,7 +44,7 @@ function Tile({
           </span>
         ) : null}
       </div>
-      {empty ? <span className="text-xs text-muted-foreground">pas encore mesuré</span> : null}
+      {empty ? <span className="text-xs text-muted-foreground">pas encore mesuré</span> : sub ? <span className="font-mono text-xs text-muted-foreground tabular-nums">{sub}</span> : null}
     </div>
   );
 }
@@ -76,7 +78,8 @@ export function KpiStrip({ overview }: { overview: Overview }) {
         <Tile
           label="Coût du mois"
           value={formatEur(overview.costMonthEur)}
-          hint="Estimation des appels API depuis le 1er du mois, convertie en euros. Indicatif, pas une facture."
+          sub={`runs ${formatEur(overview.costRunsEur)}, inspections ${formatEur(overview.costInspectionsEur)}`}
+          hint={`Estimation des appels API depuis le 1er du mois, convertie en euros : ${formatEur(overview.costRunsEur)} pour les runs quotidiens et ${formatEur(overview.costInspectionsEur)} pour les inspections d'URL. Indicatif, pas une facture.`}
         />
       </div>
       <div className="border-t px-5 py-2 text-xs text-muted-foreground">

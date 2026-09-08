@@ -76,6 +76,18 @@ export function ProjectForm({ project }: { project: Project }) {
                 <FieldDescription>Au-delà, le run s&apos;arrête en échec.</FieldDescription>
               </Field>
             </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel htmlFor="p-insp-cap">Plafond par inspection (€)</FieldLabel>
+                <Input id="p-insp-cap" name="inspectionCostCapEur" type="number" min={0.1} max={50} step={0.1} defaultValue={project.inspectionCostCapEur} className="font-mono" required />
+                <FieldDescription>Le test d&apos;une URL s&apos;arrête en échec au-delà.</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="p-insp-day">Inspections par jour</FieldLabel>
+                <Input id="p-insp-day" name="inspectionsPerDay" type="number" min={1} max={200} step={1} defaultValue={project.inspectionsPerDay} className="font-mono" required />
+                <FieldDescription>Analyses d&apos;URL acceptées par jour, tests compris.</FieldDescription>
+              </Field>
+            </div>
           </FieldGroup>
         </CardContent>
         <CardFooter className="justify-end">

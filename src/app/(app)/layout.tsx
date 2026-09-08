@@ -3,6 +3,9 @@ import { getCurrentProject } from "@/lib/queries";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Header } from "@/components/shell/header";
 
+// Pages authentifiées et lues en base : jamais prérendues au build.
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const project = await getCurrentProject();
 

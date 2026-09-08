@@ -23,11 +23,15 @@ Sans `DATABASE_URL`, la base est un Postgres embarqué dans `.data/pglite`, migr
 |---|---|
 | `pnpm run:once --prompt "..." [--engine anthropic] [--no-search]` | Teste un prompt sur les moteurs, sans base, affiche réponse, sources, coût et détection |
 | `pnpm run:full` | Run complet séquentiel en ligne de commande (sans workflow) |
+| `pnpm inspect --url <url> [--launch] [--engine openai] [--force]` | Inspection d'une URL : étape A gratuite (accès des robots IA, fiche de la page, questions), `--launch` pour l'étape B payante |
+| `pnpm stats` | Résumé chiffré du projet |
 | `pnpm seed` | Données initiales, idempotent |
 | `pnpm test` | Tests unitaires (règles de détection) |
 | `pnpm typecheck`, `pnpm lint`, `pnpm build` | Qualité |
 | `pnpm db:generate` | Génère une migration après modification de `src/db/schema.ts` |
 | `pnpm db:migrate` | Applique les migrations sur `DATABASE_URL` (production) |
+
+L'inspection d'URL (page "Inspecter") suit l'analyse de `docs/inspection-url.md` : étape A gratuite, étape B sur clic explicite avec plafonds de coût.
 
 Un run manuel depuis l'UI ou via `POST /api/runs` avec `{ "projectId": "..." }` passe par le workflow durable. Le cron quotidien appelle `GET /api/cron/daily` avec `Authorization: Bearer $CRON_SECRET`.
 
@@ -56,6 +60,7 @@ src/lib/engines    appel uniforme des fournisseurs via l'AI SDK
 src/lib/runs       planification, exécution idempotente d'une tâche, détections
 src/lib/queries    requêtes du dashboard
 src/lib/actions    server actions (prompts, projet, concurrents, moteurs, auth)
+src/lib/inspect    inspection d'URL : normalisation, garde SSRF, robots.txt, extraction, questions, service, workflow
 src/workflows      orchestration durable (lots de 3, plafond de coût)
 src/app/api        POST /api/runs, GET /api/cron/daily
 scripts/           seed, run:once, run:full

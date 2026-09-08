@@ -26,6 +26,8 @@ export const projects = pgTable("projects", {
   locale: text("locale").default("fr-FR").notNull(),
   repeats: integer("repeats").default(1).notNull(),
   costCapEur: real("cost_cap_eur").default(5).notNull(),
+  inspectionCostCapEur: real("inspection_cost_cap_eur").default(0.5).notNull(),
+  inspectionsPerDay: integer("inspections_per_day").default(20).notNull(),
   createdAt: createdAt(),
 });
 
@@ -161,6 +163,91 @@ export const detections = pgTable(
   (t) => [index("detections_result_idx").on(t.resultId), index("detections_entity_idx").on(t.entityType, t.entityId)],
 );
 
+export type InspectionStatus = "draft" | "running" | "done" | "failed";
+
+export type PageSnapshot = {
+  finalUrl: string;
+  httpStatus: number;
+  responseMs: number;
+  redirects: number;
+  title: string;
+  h1: string;
+  description: string;
+  h2: string[];
+  lang: string;
+  wordCount: number;
+  publishedAt: string | null;
+  canonical: string | null;
+  robotsMeta: string | null;
+  jsonLdTypes: string[];
+  jsSuspect: boolean;
+  fetchError?: string;
+};
+
+export type AccessSnapshot = {
+  robotsFound: boolean;
+  agents: Array<{ agent: string; vendor: string; role: string; allowed: boolean; explicit: boolean }>;
+  allAllowed: boolean;
+  llmsTxt: boolean;
+  checkedAt: string;
+};
+
+export type InspectionQuestion = { text: string; lang: string; source: "generated" | "manual" };
+
+export const inspections = pgTable(
+  "inspections",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .references(() => projects.id, { onDelete: "cascade" })
+      .notNull(),
+    url: text("url").notNull(),
+    normalizedUrl: text("normalized_url").notNull(),
+    contentHash: text("content_hash"),
+    status: text("status").$type<InspectionStatus>().default("draft").notNull(),
+    page: jsonb("page").$type<PageSnapshot | null>(),
+    access: jsonb("access").$type<AccessSnapshot | null>(),
+    questions: jsonb("questions").$type<InspectionQuestion[]>().default([]).notNull(),
+    engineIds: jsonb("engine_ids").$type<string[]>().default([]).notNull(),
+    /** Vrai si les questions viennent d'une inspection précédente (cache 7 jours) */
+    questionsReused: boolean("questions_reused").default(false).notNull(),
+    workflowRunId: text("workflow_run_id"),
+    plannedCount: integer("planned_count").default(0).notNull(),
+    doneCount: integer("done_count").default(0).notNull(),
+    costEstimate: real("cost_estimate").default(0).notNull(),
+    error: text("error"),
+    createdAt: createdAt(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("inspections_project_created_idx").on(t.projectId, t.createdAt), index("inspections_url_idx").on(t.projectId, t.normalizedUrl)],
+);
+
+export const inspectionAnswers = pgTable(
+  "inspection_answers",
+  {
+    id: id(),
+    inspectionId: text("inspection_id")
+      .references(() => inspections.id, { onDelete: "cascade" })
+      .notNull(),
+    questionIndex: integer("question_index").notNull(),
+    engineId: text("engine_id")
+      .references(() => engines.id, { onDelete: "cascade" })
+      .notNull(),
+    rawText: text("raw_text").default("").notNull(),
+    sources: jsonb("sources").$type<SourceRef[]>().default([]).notNull(),
+    usage: jsonb("usage").$type<UsageRef>().default({}).notNull(),
+    costEstimate: real("cost_estimate").default(0).notNull(),
+    latencyMs: integer("latency_ms").default(0).notNull(),
+    error: text("error"),
+    urlCited: boolean("url_cited").default(false).notNull(),
+    urlRank: integer("url_rank"),
+    domainCited: boolean("domain_cited").default(false).notNull(),
+    domainRank: integer("domain_rank"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("inspection_answers_uniq").on(t.inspectionId, t.questionIndex, t.engineId)],
+);
+
 export const projectsRelations = relations(projects, ({ many }) => ({
   competitors: many(competitors),
   prompts: many(prompts),
@@ -186,6 +273,14 @@ export const resultsRelations = relations(results, ({ one, many }) => ({
 export const detectionsRelations = relations(detections, ({ one }) => ({
   result: one(results, { fields: [detections.resultId], references: [results.id] }),
 }));
+export const inspectionsRelations = relations(inspections, ({ one, many }) => ({
+  project: one(projects, { fields: [inspections.projectId], references: [projects.id] }),
+  answers: many(inspectionAnswers),
+}));
+export const inspectionAnswersRelations = relations(inspectionAnswers, ({ one }) => ({
+  inspection: one(inspections, { fields: [inspectionAnswers.inspectionId], references: [inspections.id] }),
+  engine: one(engines, { fields: [inspectionAnswers.engineId], references: [engines.id] }),
+}));
 
 export type Project = typeof projects.$inferSelect;
 export type Competitor = typeof competitors.$inferSelect;
@@ -194,3 +289,5 @@ export type Engine = typeof engines.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type Result = typeof results.$inferSelect;
 export type Detection = typeof detections.$inferSelect;
+export type Inspection = typeof inspections.$inferSelect;
+export type InspectionAnswer = typeof inspectionAnswers.$inferSelect;

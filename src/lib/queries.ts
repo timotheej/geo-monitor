@@ -55,6 +55,8 @@ export type Overview = {
   citationDelta: number | null;
   mentionDelta: number | null;
   costMonthEur: number;
+  costRunsEur: number;
+  costInspectionsEur: number;
 };
 
 export async function getOverview(projectId: string, days = 30): Promise<Overview> {
@@ -82,6 +84,11 @@ export async function getOverview(projectId: string, days = 30): Promise<Overvie
     .from(schema.runs)
     .where(and(eq(schema.runs.projectId, projectId), gte(schema.runs.startedAt, monthStart)));
 
+  const [insp] = await db
+    .select({ usd: sql<number>`coalesce(sum(${schema.inspections.costEstimate}), 0)::float` })
+    .from(schema.inspections)
+    .where(and(eq(schema.inspections.projectId, projectId), gte(schema.inspections.createdAt, monthStart)));
+
   const c = rate(cur, "cited");
   const m = rate(cur, "mentioned");
   const pc = rate(prev, "cited");
@@ -94,7 +101,9 @@ export async function getOverview(projectId: string, days = 30): Promise<Overvie
     shareOfVoice: sov?.all ? sov.brand / sov.all : null,
     citationDelta: c !== null && pc !== null ? (c - pc) * 100 : null,
     mentionDelta: m !== null && pm !== null ? (m - pm) * 100 : null,
-    costMonthEur: (cost?.usd ?? 0) * USD_TO_EUR,
+    costMonthEur: ((cost?.usd ?? 0) + (insp?.usd ?? 0)) * USD_TO_EUR,
+    costRunsEur: (cost?.usd ?? 0) * USD_TO_EUR,
+    costInspectionsEur: (insp?.usd ?? 0) * USD_TO_EUR,
   };
 }
 

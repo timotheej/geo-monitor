@@ -180,3 +180,7 @@ Chaque jalon est livrable et testable seul. On ne passe au suivant qu'après une
 | Share of voice | 27 % |
 
 Rablab est cité sur les prompts "audit technique SEO et migration", "formation SEO au Québec" (via la Rabacadémie) et "Google Partners in Montreal", mentionné en plus sur "agences de marketing web à Montréal" et "top SEO agencies in Quebec for e-commerce". Absent des prompts généralistes "meilleure agence SEO à Montréal" et de tous les prompts en mode mémoire. Digitad est le concurrent le plus visible (domaine cité 6 fois). Les sources dominantes sont clutch.co et bcorporation.net.
+
+## 15. Inspection d'URL (lot ajouté le 7 septembre 2026)
+
+Fonction "Search Console" : coller une URL, obtenir son accessibilité aux robots IA, une fiche de la page, des questions générées et un test de citation en direct. Conception, coûts et garde-fous détaillés dans `docs/inspection-url.md`. Implémentation : `src/lib/inspect/*`, workflow `src/workflows/inspection-workflow.ts`, tables `inspections` et `inspection_answers`, page `/inspect`.

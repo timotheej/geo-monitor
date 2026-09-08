@@ -19,3 +19,26 @@ export async function finishRunStep(runId: string, status: "done" | "failed", er
   "use step";
   await finishRun(runId, status, error);
 }
+
+// ---------- Inspection d'URL ----------
+import { answerInspectionQuestion, finishInspection, getInspectionCost, setInspectionWorkflow, type InspectionTask } from "@/lib/inspect/service";
+
+export async function startInspectionStep(inspectionId: string, workflowRunId: string) {
+  "use step";
+  await setInspectionWorkflow(inspectionId, workflowRunId);
+}
+
+export async function answerInspectionStep(inspectionId: string, task: InspectionTask) {
+  "use step";
+  return answerInspectionQuestion(inspectionId, task);
+}
+
+export async function inspectionCostStep(inspectionId: string) {
+  "use step";
+  return getInspectionCost(inspectionId);
+}
+
+export async function finishInspectionStep(inspectionId: string, status: "done" | "failed", error?: string) {
+  "use step";
+  await finishInspection(inspectionId, status, error);
+}

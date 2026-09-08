@@ -8,6 +8,13 @@
       "when": 1788711429551,
       "tag": "0000_wandering_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788860235390,
+      "tag": "0001_fantastic_madripoor",
+      "breakpoints": true
     }
   ]
 }
