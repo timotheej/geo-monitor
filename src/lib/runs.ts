@@ -103,6 +103,7 @@ export async function executeTask(runId: string, task: Task): Promise<TaskOutcom
       webSearch: prompt.webSearch,
       rawText: outcome.text,
       sources: outcome.sources,
+      searchQueries: outcome.searchQueries,
       usage: outcome.usage,
       costEstimate: outcome.costUsd,
       latencyMs: outcome.latencyMs,
@@ -135,7 +136,7 @@ async function callEngine(engine: Engine, prompt: Prompt, project: Project) {
     return { ...answer, costUsd: estimateCostUsd(engine.provider, engine.config, answer.usage, engine.model), error: null };
   } catch (err) {
     const message = err instanceof EngineError ? `${err.status ?? ""} ${err.message}`.trim() : String(err);
-    return { text: "", sources: [], usage: {}, latencyMs: 0, costUsd: 0, error: message };
+    return { text: "", sources: [], searchQueries: [], usage: {}, latencyMs: 0, costUsd: 0, error: message };
   }
 }
 

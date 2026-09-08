@@ -139,6 +139,24 @@ export async function ResultSheet({ resultId }: { resultId: string | undefined }
           </ul>
         </section>
 
+        {result.searchQueries.length > 0 ? (
+          <section>
+            <h3 className="mb-2 text-sm font-medium">
+              Requêtes formulées par le moteur <span className="text-muted-foreground">({result.searchQueries.length})</span>
+            </h3>
+            <ul className="flex flex-wrap gap-1.5">
+              {result.searchQueries.map((q) => (
+                <li key={q}>
+                  <Badge variant="secondary" className="font-normal">
+                    {q}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-xs text-muted-foreground">Ce sont les requêtes de recherche classique à travailler pour entrer dans les sources du moteur.</p>
+          </section>
+        ) : null}
+
         <section>
           <h3 className="mb-2 text-sm font-medium">
             Sources <span className="text-muted-foreground">({result.sources.length})</span>
@@ -168,6 +186,11 @@ export async function ResultSheet({ resultId }: { resultId: string | undefined }
                             className={cn(owner.type === "brand" ? "border-signal/50 text-signal" : "border-rival/50 text-rival")}
                           >
                             {owner.name}
+                          </Badge>
+                        ) : null}
+                        {s.cited === false ? (
+                          <Badge variant="outline" className="text-muted-foreground" title="Page lue par la recherche mais non utilisée dans la réponse">
+                            lue, non utilisée
                           </Badge>
                         ) : null}
                         <ExternalLink className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />

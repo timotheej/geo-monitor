@@ -3,10 +3,10 @@ import { getDb } from "@/db";
 import { appendEngineToRun } from "@/lib/launch-run";
 import type { Provider } from "@/db/schema";
 
-/** Complète un run terminé avec un moteur : `{ "engineId": "..." }` ou `{ "provider": "google" }`. */
+/** Complète un run terminé avec un moteur : `{ "engineId": "..." }` ou `{ "provider": "google" }`, `replace: true` pour rejouer le moteur de zéro. */
 export async function POST(request: Request, ctx: RouteContext<"/api/runs/[id]/append">) {
   const { id } = await ctx.params;
-  const body = (await request.json().catch(() => ({}))) as { engineId?: string; provider?: Provider };
+  const body = (await request.json().catch(() => ({}))) as { engineId?: string; provider?: Provider; replace?: boolean };
   let engineId = body.engineId;
   if (!engineId && body.provider) {
     const db = await getDb();
@@ -16,7 +16,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/runs/[id]/a
   }
   if (!engineId) return NextResponse.json({ error: "engineId ou provider requis" }, { status: 400 });
   try {
-    return NextResponse.json(await appendEngineToRun(id, engineId));
+    return NextResponse.json(await appendEngineToRun(id, engineId, { replace: body.replace === true }));
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 409 });
   }

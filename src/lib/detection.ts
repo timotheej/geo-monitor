@@ -12,13 +12,17 @@ export type Entity = {
   domains: string[];
 };
 
-export type SourceLike = { url: string; title?: string };
+export type SourceLike = { url: string; title?: string; cited?: boolean; retrieved?: boolean };
 
 export type DetectionResult = {
   entityType: Entity["type"];
   entityId: string;
+  /** Un domaine de l'entité figure parmi les sources utilisées dans la réponse */
   cited: boolean;
   citationRank: number | null;
+  /** Un domaine de l'entité figure parmi les pages lues par la recherche (citées ou non) */
+  retrieved: boolean;
+  retrievedRank: number | null;
   mentioned: boolean;
   mentionRank: number | null;
   matchedTerms: string[];
@@ -72,16 +76,17 @@ export function findTerm(normalizedText: string, term: string): number {
 
 export function detect(text: string, sources: SourceLike[], entities: Entity[]): DetectionResult[] {
   const normalized = normalizeText(text);
-  const hosts = sources.map((s) => normalizeDomain(s.url));
+  // Sans drapeau (anciennes lignes, fournisseurs qui ne distinguent pas), une source est considérée citée.
+  const citedHosts = sources.filter((s) => s.cited !== false).map((s) => normalizeDomain(s.url));
+  const allHosts = sources.map((s) => normalizeDomain(s.url));
+  const rankIn = (hosts: string[], domains: string[]) => {
+    const i = hosts.findIndex((h) => domains.some((d) => domainMatches(h, d)));
+    return i >= 0 ? i + 1 : null;
+  };
 
   const partial = entities.map((e) => {
-    let citationRank: number | null = null;
-    for (let i = 0; i < hosts.length; i++) {
-      if (e.domains.some((d) => domainMatches(hosts[i], d))) {
-        citationRank = i + 1;
-        break;
-      }
-    }
+    const citationRank = rankIn(citedHosts, e.domains);
+    const retrievedRank = rankIn(allHosts, e.domains);
 
     let firstIndex = Number.POSITIVE_INFINITY;
     const matchedTerms: string[] = [];
@@ -103,7 +108,7 @@ export function detect(text: string, sources: SourceLike[], entities: Entity[]):
       }
     }
 
-    return { e, citationRank, firstIndex: Number.isFinite(firstIndex) ? firstIndex : null, matchedTerms };
+    return { e, citationRank, retrievedRank, firstIndex: Number.isFinite(firstIndex) ? firstIndex : null, matchedTerms };
   });
 
   // Rang de mention = ordre d'apparition parmi les entités mentionnées.
@@ -117,6 +122,8 @@ export function detect(text: string, sources: SourceLike[], entities: Entity[]):
     entityId: p.e.id,
     cited: p.citationRank !== null,
     citationRank: p.citationRank,
+    retrieved: p.retrievedRank !== null,
+    retrievedRank: p.retrievedRank,
     mentioned: p.firstIndex !== null,
     mentionRank: rankById.get(p.e.id) ?? null,
     matchedTerms: p.matchedTerms,

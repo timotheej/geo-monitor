@@ -8,7 +8,10 @@ import { normalizeDomain } from "@/lib/detection";
 
 export type EngineAnswer = {
   text: string;
+  /** Sources citées d'abord, puis pages lues mais non utilisées (quand le fournisseur le dit) */
   sources: SourceRef[];
+  /** Requêtes de recherche formulées par le moteur */
+  searchQueries: string[];
   usage: UsageRef;
   latencyMs: number;
 };
@@ -67,7 +70,8 @@ async function mockAnswer(promptText: string, started: number): Promise<EngineAn
   const a = MOCK_ANSWERS[(h + Math.floor(Math.random() * 2)) % MOCK_ANSWERS.length];
   return {
     text: a.text,
-    sources: a.urls.map((url) => ({ url, domain: normalizeDomain(url) })),
+    sources: a.urls.map((url) => ({ url, domain: normalizeDomain(url), cited: true, retrieved: true })),
+    searchQueries: [promptText.slice(0, 60)],
     usage: { inputTokens: 400, outputTokens: 120, totalTokens: 520, searches: 1 },
     latencyMs: Date.now() - started,
   };
@@ -106,10 +110,69 @@ function toEngineError(err: unknown): EngineError {
 type RawResult = {
   text: string;
   sources: ReadonlyArray<{ sourceType: string; url?: string; title?: string }>;
-  steps: ReadonlyArray<{ toolCalls: ReadonlyArray<{ toolName: string }> }>;
+  steps: ReadonlyArray<{
+    toolCalls: ReadonlyArray<{ toolName: string; input?: unknown }>;
+    toolResults: ReadonlyArray<{ toolName: string; output?: unknown }>;
+  }>;
   usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
   providerMetadata?: Record<string, unknown>;
 };
+
+type GroundingMetadata = {
+  webSearchQueries?: string[] | null;
+  groundingChunks?: Array<{ web?: { uri: string; title?: string | null } | null }> | null;
+  groundingSupports?: Array<{ groundingChunkIndices?: number[] | null }> | null;
+};
+
+/**
+ * Ce que chaque fournisseur laisse voir de sa recherche :
+ * OpenAI : requêtes et pages lues dans la sortie de l'outil, citations dans `sources`.
+ * Anthropic : requête dans l'entrée de l'outil, pages lues dans sa sortie, citations dans `sources`.
+ * Gemini : requêtes, chunks lus et chunks utilisés dans les métadonnées de grounding ; `sources` = chunks lus.
+ */
+function searchTrace(engine: Engine, res: RawResult): { queries: string[]; retrieved: Array<{ url: string; title?: string }>; citedUrls: Set<string> | null } {
+  const queries: string[] = [];
+  const retrieved: Array<{ url: string; title?: string }> = [];
+  let citedUrls: Set<string> | null = null;
+
+  if (engine.provider === "google") {
+    const gm = (res.providerMetadata?.google as { groundingMetadata?: GroundingMetadata } | undefined)?.groundingMetadata;
+    for (const q of gm?.webSearchQueries ?? []) queries.push(q);
+    const chunks = gm?.groundingChunks ?? [];
+    for (const c of chunks) if (c.web?.uri) retrieved.push({ url: c.web.uri, title: c.web.title ?? undefined });
+    const supports = gm?.groundingSupports ?? [];
+    if (supports.length) {
+      citedUrls = new Set<string>();
+      for (const sup of supports) for (const i of sup.groundingChunkIndices ?? []) if (chunks[i]?.web?.uri) citedUrls.add(chunks[i].web!.uri);
+    }
+    return { queries, retrieved, citedUrls };
+  }
+
+  for (const step of res.steps) {
+    for (const call of step.toolCalls) {
+      if (call.toolName !== "web_search") continue;
+      const input = call.input as { query?: string } | undefined;
+      if (typeof input?.query === "string") queries.push(input.query);
+    }
+    for (const tr of step.toolResults) {
+      if (tr.toolName !== "web_search") continue;
+      const out = tr.output as
+        | { action?: { query?: string; queries?: string[]; sources?: Array<{ type: string; url?: string }> } }
+        | Array<{ type?: string; url?: string; title?: string | null }>
+        | undefined;
+      if (Array.isArray(out)) {
+        // Anthropic : la liste des résultats de recherche
+        for (const r of out) if (r?.url) retrieved.push({ url: r.url, title: r.title ?? undefined });
+      } else if (out?.action) {
+        // OpenAI : requête(s) et pages lues
+        if (typeof out.action.query === "string") queries.push(out.action.query);
+        for (const q of out.action.queries ?? []) queries.push(q);
+        for (const src of out.action.sources ?? []) if (src.type === "url" && src.url) retrieved.push({ url: src.url });
+      }
+    }
+  }
+  return { queries, retrieved, citedUrls };
+}
 
 const GOOGLE_REDIRECT = /^https:\/\/vertexaisearch\.cloud\.google\.com\/grounding-api-redirect\//;
 
@@ -145,13 +208,23 @@ function anthropicWebSearch(model: string, options: { maxUses: number; userLocat
 }
 
 function toAnswer(engine: Engine, res: RawResult, started: number): EngineAnswer {
+  const trace = searchTrace(engine, res);
   const seen = new Set<string>();
-  const sources: SourceRef[] = [];
+  const cited: SourceRef[] = [];
+  const retrievedOnly: SourceRef[] = [];
   for (const s of res.sources) {
     if (s.sourceType !== "url" || !s.url || seen.has(s.url)) continue;
     seen.add(s.url);
-    sources.push({ url: s.url, title: s.title, domain: normalizeDomain(s.url) });
+    const isCited = trace.citedUrls ? trace.citedUrls.has(s.url) : true;
+    (isCited ? cited : retrievedOnly).push({ url: s.url, title: s.title, domain: normalizeDomain(s.url), cited: isCited, retrieved: true });
   }
+  for (const r of trace.retrieved) {
+    if (seen.has(r.url)) continue;
+    seen.add(r.url);
+    retrievedOnly.push({ url: r.url, title: r.title, domain: normalizeDomain(r.url), cited: false, retrieved: true });
+  }
+  const sources = [...cited, ...retrievedOnly];
+  const searchQueries = Array.from(new Set(trace.queries.map((q) => q.trim()).filter(Boolean)));
   const searchCalls = res.steps.reduce((n, step) => n + step.toolCalls.filter((c) => c.toolName === "web_search").length, 0);
   const pplxSearches = (res.providerMetadata?.perplexity as { usage?: { numSearchQueries?: number } } | undefined)?.usage
     ?.numSearchQueries;
@@ -171,6 +244,7 @@ function toAnswer(engine: Engine, res: RawResult, started: number): EngineAnswer
   return {
     text: res.text,
     sources,
+    searchQueries,
     usage: {
       inputTokens: res.usage.inputTokens,
       outputTokens: res.usage.outputTokens,

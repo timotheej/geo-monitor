@@ -183,17 +183,20 @@ export async function answerInspectionQuestion(inspectionId: string, task: Inspe
   if (!insp || !engine || !question) throw new Error("Inspection, moteur ou question introuvable");
   const country = insp.project.locale.split("-")[1] ?? "CA";
 
-  let outcome: { text: string; sources: SourceRef[]; usage: Record<string, number | undefined>; latencyMs: number; costUsd: number; error: string | null };
+  let outcome: { text: string; sources: SourceRef[]; searchQueries: string[]; usage: Record<string, number | undefined>; latencyMs: number; costUsd: number; error: string | null };
   try {
     const a = await runPromptWithRetry(engine, question.text, { webSearch: true, lang: question.lang, country });
     outcome = { ...a, costUsd: estimateCostUsd(engine.provider, engine.config, a.usage, engine.model), error: null };
   } catch (err) {
-    outcome = { text: "", sources: [], usage: {}, latencyMs: 0, costUsd: 0, error: err instanceof EngineError ? `${err.status ?? ""} ${err.message}`.trim() : String(err) };
+    outcome = { text: "", sources: [], searchQueries: [], usage: {}, latencyMs: 0, costUsd: 0, error: err instanceof EngineError ? `${err.status ?? ""} ${err.message}`.trim() : String(err) };
   }
 
   const target = insp.page?.finalUrl ?? insp.url;
-  const urlRank = outcome.sources.findIndex((s) => urlMatches(s.url, target) || urlMatches(s.url, insp.url));
-  const domainRank = outcome.sources.findIndex((s) => insp.project.domains.some((d) => sameSite(s.url, d)));
+  const citedSources = outcome.sources.filter((s) => s.cited !== false);
+  const urlRank = citedSources.findIndex((s) => urlMatches(s.url, target) || urlMatches(s.url, insp.url));
+  const domainRank = citedSources.findIndex((s) => insp.project.domains.some((d) => sameSite(s.url, d)));
+  const urlRetrieved = outcome.sources.some((s) => urlMatches(s.url, target) || urlMatches(s.url, insp.url));
+  const domainRetrieved = outcome.sources.some((s) => insp.project.domains.some((d) => sameSite(s.url, d)));
 
   await db
     .insert(schema.inspectionAnswers)
@@ -203,6 +206,7 @@ export async function answerInspectionQuestion(inspectionId: string, task: Inspe
       engineId: task.engineId,
       rawText: outcome.text,
       sources: outcome.sources,
+      searchQueries: outcome.searchQueries,
       usage: outcome.usage,
       costEstimate: outcome.costUsd,
       latencyMs: outcome.latencyMs,
@@ -211,6 +215,8 @@ export async function answerInspectionQuestion(inspectionId: string, task: Inspe
       urlRank: urlRank >= 0 ? urlRank + 1 : null,
       domainCited: domainRank >= 0,
       domainRank: domainRank >= 0 ? domainRank + 1 : null,
+      urlRetrieved,
+      domainRetrieved,
     })
     .onConflictDoNothing();
   await db

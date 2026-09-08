@@ -60,6 +60,16 @@ describe("detect", () => {
     expect(r[0]).toMatchObject({ mentioned: true, matchedTerms: ["gatto.city"] });
   });
 
+  it("distinguishes retrieved from cited when sources carry flags", () => {
+    const sources = [
+      { url: "https://www.seloger.com/a", cited: true, retrieved: true },
+      { url: "https://gatto.city/b", cited: false, retrieved: true },
+    ];
+    const r = detect("Rien.", sources, [brand, comp]);
+    expect(r.find((d) => d.entityId === "p1")).toMatchObject({ cited: false, citationRank: null, retrieved: true, retrievedRank: 2 });
+    expect(r.find((d) => d.entityId === "c1")).toMatchObject({ cited: true, citationRank: 1, retrieved: true, retrievedRank: 1 });
+  });
+
   it("returns nothing for unrelated text", () => {
     const r = detect("Les chats aiment le soleil.", [{ url: "https://wikipedia.org" }], [brand, comp]);
     expect(r.every((d) => !d.cited && !d.mentioned)).toBe(true);

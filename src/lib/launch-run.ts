@@ -46,11 +46,23 @@ export async function cancelRun(runId: string) {
  * pour ce moteur seul. Les tâches déjà faites (résultat existant) sont ignorées par executeTask,
  * on peut donc relancer sans doublon. Le run repasse en "running" et le workflow le clôturera.
  */
-export async function appendEngineToRun(runId: string, engineId: string) {
+export async function appendEngineToRun(runId: string, engineId: string, opts: { replace?: boolean } = {}) {
   const db = await getDb();
   const run = await db.query.runs.findFirst({ where: eq(schema.runs.id, runId) });
   if (!run) throw new Error("Run introuvable");
   if (run.status === "running" || run.status === "pending") throw new Error("Run encore en cours");
+  if (opts.replace) {
+    // Rejoue le moteur de zéro sur ce run : on retire ses résultats, les compteurs suivent.
+    const old = await db.query.results.findMany({ where: and(eq(schema.results.runId, runId), eq(schema.results.engineId, engineId)), columns: { id: true, error: true } });
+    if (old.length) {
+      await db.delete(schema.results).where(sql`${schema.results.id} in ${old.map((r) => r.id)}`);
+      const errs = old.filter((r) => r.error).length;
+      await db
+        .update(schema.runs)
+        .set({ plannedCount: sql`${schema.runs.plannedCount} - ${old.length}`, doneCount: sql`${schema.runs.doneCount} - ${old.length}`, errorCount: sql`${schema.runs.errorCount} - ${errs}` })
+        .where(eq(schema.runs.id, runId));
+    }
+  }
   const [project, engine] = await Promise.all([
     db.query.projects.findFirst({ where: eq(schema.projects.id, run.projectId) }),
     db.query.engines.findFirst({ where: eq(schema.engines.id, engineId) }),

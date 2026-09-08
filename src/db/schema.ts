@@ -105,7 +105,11 @@ export const runs = pgTable(
   (t) => [index("runs_project_started_idx").on(t.projectId, t.startedAt)],
 );
 
-export type SourceRef = { url: string; title?: string; domain: string };
+/**
+ * Une source renvoyée par un moteur. `cited` : utilisée dans le texte de la réponse ;
+ * `retrieved` : lue par la recherche. Absents sur les anciennes lignes (alors considérées citées).
+ */
+export type SourceRef = { url: string; title?: string; domain: string; cited?: boolean; retrieved?: boolean };
 export type UsageRef = {
   inputTokens?: number;
   outputTokens?: number;
@@ -130,6 +134,8 @@ export const results = pgTable(
     webSearch: boolean("web_search").notNull(),
     rawText: text("raw_text").default("").notNull(),
     sources: jsonb("sources").$type<SourceRef[]>().default([]).notNull(),
+    /** Requêtes de recherche formulées par le moteur pour répondre */
+    searchQueries: jsonb("search_queries").$type<string[]>().default([]).notNull(),
     usage: jsonb("usage").$type<UsageRef>().default({}).notNull(),
     costEstimate: real("cost_estimate").default(0).notNull(),
     latencyMs: integer("latency_ms").default(0).notNull(),
@@ -156,8 +162,11 @@ export const detections = pgTable(
     entityId: text("entity_id").notNull(),
     cited: boolean("cited").default(false).notNull(),
     mentioned: boolean("mentioned").default(false).notNull(),
+    /** Présent parmi les pages lues par la recherche, cité ou non */
+    retrieved: boolean("retrieved").default(false).notNull(),
     citationRank: integer("citation_rank"),
     mentionRank: integer("mention_rank"),
+    retrievedRank: integer("retrieved_rank"),
     matchedTerms: jsonb("matched_terms").$type<string[]>().default([]).notNull(),
   },
   (t) => [index("detections_result_idx").on(t.resultId), index("detections_entity_idx").on(t.entityType, t.entityId)],
@@ -235,6 +244,7 @@ export const inspectionAnswers = pgTable(
       .notNull(),
     rawText: text("raw_text").default("").notNull(),
     sources: jsonb("sources").$type<SourceRef[]>().default([]).notNull(),
+    searchQueries: jsonb("search_queries").$type<string[]>().default([]).notNull(),
     usage: jsonb("usage").$type<UsageRef>().default({}).notNull(),
     costEstimate: real("cost_estimate").default(0).notNull(),
     latencyMs: integer("latency_ms").default(0).notNull(),
@@ -243,6 +253,9 @@ export const inspectionAnswers = pgTable(
     urlRank: integer("url_rank"),
     domainCited: boolean("domain_cited").default(false).notNull(),
     domainRank: integer("domain_rank"),
+    /** L'URL (ou une page du domaine) a été lue par la recherche, même sans être citée */
+    urlRetrieved: boolean("url_retrieved").default(false).notNull(),
+    domainRetrieved: boolean("domain_retrieved").default(false).notNull(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("inspection_answers_uniq").on(t.inspectionId, t.questionIndex, t.engineId)],
