@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { USD_TO_EUR } from "@/lib/pricing";
 import { APP_TIMEZONE } from "@/lib/format";
@@ -735,40 +735,62 @@ export async function getDomainsInsteadOfUs(projectId: string, days = 30, limit 
     .slice(0, limit);
 }
 
-export type BrandPage = { url: string; count: number; promptCount: number; engines: EngineRef[] };
+export type BrandPageCitation = {
+  resultId: string;
+  promptId: string;
+  promptText: string;
+  engine: EngineRef;
+  date: Date;
+  /** Rang de la page parmi les sources de la réponse */
+  rank: number;
+  /** Faux si la page a seulement été lue par la recherche sans être utilisée */
+  cited: boolean;
+};
 
-/** Pages de la marque apparues dans les sources : citations, prompts et moteurs concernés. */
+export type BrandPage = { url: string; count: number; promptCount: number; engines: EngineRef[]; citations: BrandPageCitation[] };
+
+/** Pages de la marque apparues dans les sources : citations, prompts et moteurs concernés, avec le détail par réponse. */
 export async function getBrandPages(projectId: string, days = 30, limit = 50): Promise<BrandPage[]> {
   const db = await getDb();
   const project = await loadProject(projectId);
   if (!project || project.domains.length === 0) return [];
   const rows = await db
     .select({
-      url: sql<string>`s->>'url'`,
+      url: sql<string>`s.src->>'url'`,
+      cited: sql<boolean>`coalesce((s.src->>'cited')::boolean, true)`,
+      rank: sql<number>`(s.ord)::int`,
+      resultId: schema.results.id,
+      date: schema.results.createdAt,
       promptId: schema.results.promptId,
+      promptText: schema.prompts.text,
       engineId: schema.results.engineId,
       engineLabel: schema.engines.label,
       provider: schema.engines.provider,
-      count: sql<number>`count(*)::int`,
     })
     .from(schema.results)
     .innerJoin(schema.runs, eq(schema.results.runId, schema.runs.id))
+    .innerJoin(schema.prompts, eq(schema.results.promptId, schema.prompts.id))
     .innerJoin(schema.engines, eq(schema.results.engineId, schema.engines.id))
-    .innerJoin(sql`jsonb_array_elements(${schema.results.sources}) as s`, sql`true`)
-    .where(and(eq(schema.runs.projectId, projectId), gte(schema.results.createdAt, since(days)), domainIn(sql`s->>'domain'`, project.domains)))
-    .groupBy(sql`1`, schema.results.promptId, schema.results.engineId, schema.engines.label, schema.engines.provider);
+    .innerJoin(sql`jsonb_array_elements(${schema.results.sources}) with ordinality as s(src, ord)`, sql`true`)
+    .where(and(eq(schema.runs.projectId, projectId), gte(schema.results.createdAt, since(days)), domainIn(sql`s.src->>'domain'`, project.domains)))
+    .orderBy(desc(schema.results.createdAt), sql`s.ord`);
 
-  const by = new Map<string, BrandPage & { prompts: Set<string> }>();
+  const by = new Map<string, BrandPage & { prompts: Set<string>; seen: Set<string> }>();
   for (const r of rows) {
     const key = normalizeUrl(r.url) ?? r.url;
-    const p = by.get(key) ?? { url: r.url, count: 0, promptCount: 0, engines: [], prompts: new Set<string>() };
-    p.count += r.count;
+    const p = by.get(key) ?? { url: r.url, count: 0, promptCount: 0, engines: [], citations: [], prompts: new Set<string>(), seen: new Set<string>() };
+    p.count += 1;
     p.prompts.add(r.promptId);
-    if (!p.engines.some((e) => e.id === r.engineId)) p.engines.push({ id: r.engineId, label: r.engineLabel, provider: r.provider });
+    const engine = { id: r.engineId, label: r.engineLabel, provider: r.provider };
+    if (!p.engines.some((e) => e.id === r.engineId)) p.engines.push(engine);
+    if (!p.seen.has(r.resultId)) {
+      p.seen.add(r.resultId);
+      p.citations.push({ resultId: r.resultId, promptId: r.promptId, promptText: r.promptText, engine, date: r.date, rank: r.rank, cited: r.cited });
+    }
     by.set(key, p);
   }
   return Array.from(by.values())
-    .map(({ prompts, ...p }) => ({ ...p, promptCount: prompts.size }))
+    .map((p) => ({ url: p.url, count: p.count, engines: p.engines, citations: p.citations, promptCount: p.prompts.size }))
     .sort((a, b) => b.count - a.count)
     .slice(0, limit);
 }

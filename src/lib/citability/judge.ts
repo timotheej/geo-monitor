@@ -50,12 +50,12 @@ export function buildJudgePrompt(input: JudgeInput): { system: string; prompt: s
 - fit (adéquation du type de page au type de question) : 0 hors sujet, 1 partiel, 2 bon, 3 exactement le format attendu (par exemple un comparatif neutre pour une question "meilleure agence", un guide pour une question "comment").
 - directAnswer : 0 aucune réponse directe, 1 réponse diluée, 2 réponse claire mais enfouie, 3 un passage de 80 mots maximum répond directement, cite-le tel quel dans directAnswerPassage.
 - specificity : 0 générique, 1 quelques faits, 2 chiffres et sources précis, 3 chiffres, sources nommées et exemples concrets.
-Les actions doivent être concrètes et vérifiables (où, quoi, combien), jamais "améliorer le contenu". Réponds dans la langue de la question.`
+Les forces et les manques décrivent la page en tant que source pour cette question. Les actions sont des modifications à apporter à la page par son rédacteur pour qu'un moteur IA la cite davantage sur cette question : concrètes et vérifiables (quelle section, quel ajout, quelle donnée), jamais "améliorer le contenu", et jamais des conseils au lecteur. Réponds dans la langue de la question.`
     : `You evaluate whether a web page is a good source to answer a question asked to an AI assistant with web search. Grade strictly and factually. Scale:
 - fit (page type versus question type): 0 off topic, 1 partial, 2 good, 3 exactly the expected format (a neutral roundup for a "best agency" question, a guide for a "how to" question).
 - directAnswer: 0 none, 1 diluted, 2 clear but buried, 3 a passage of at most 80 words answers directly; quote it verbatim in directAnswerPassage.
 - specificity: 0 generic, 1 a few facts, 2 precise figures and sources, 3 figures, named sources and concrete examples.
-Actions must be concrete and checkable (where, what, how much), never "improve the content". Answer in the question's language.`;
+Strengths and gaps describe the page as a source for this question. Actions are edits the page's author should make so that an AI engine cites it more on this question: concrete and checkable (which section, what to add, which data), never "improve the content", and never advice to the reader. Answer in the question's language.`;
   const p = input.page;
   const prompt = [
     `Question : ${input.question}`,

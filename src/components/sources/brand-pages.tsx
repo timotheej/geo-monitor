@@ -1,14 +1,8 @@
-import Link from "next/link";
-import { ExternalLink, ScanSearch } from "lucide-react";
 import type { BrandPage } from "@/lib/dashboard-queries";
-import { formatInt } from "@/lib/format";
-import { normalizeUrl } from "@/lib/inspect/url";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { EngineMark } from "@/components/engines/engine-logo";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyCard } from "@/components/empty-card";
+import { BrandPageRow } from "./brand-page-row";
 
 /** URL de la marque apparues dans les sources : ce qui marche déjà, à consolider. */
 export function BrandPages({ rows, brandName, hasDomains }: { rows: BrandPage[]; brandName: string; hasDomains: boolean }) {
@@ -40,47 +34,7 @@ export function BrandPages({ rows, brandName, hasDomains }: { rows: BrandPage[];
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.url}>
-                  <TableCell className="max-w-0 pl-5 whitespace-normal">
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="group flex items-start gap-1 underline-offset-4 hover:underline">
-                      <span className="line-clamp-2 font-mono text-xs leading-snug break-all text-signal">{normalizeUrl(r.url) ?? r.url}</span>
-                      <ExternalLink className="mt-0.5 size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums">{formatInt(r.count)}</TableCell>
-                  <TableCell className="text-right font-mono text-sm text-muted-foreground tabular-nums">{formatInt(r.promptCount)}</TableCell>
-                  <TableCell>
-                    <span className="flex items-center gap-1">
-                      {r.engines.map((e) => (
-                        <Tooltip key={e.id}>
-                          <TooltipTrigger render={<span className="inline-flex" />}>
-                            <EngineMark provider={e.provider} size="sm" />
-                          </TooltipTrigger>
-                          <TooltipContent>{e.label}</TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </span>
-                  </TableCell>
-                  <TableCell className="pr-4 text-right">
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-muted-foreground"
-                            aria-label="Inspecter cette URL"
-                            nativeButton={false}
-                            render={<Link href={`/inspect?url=${encodeURIComponent(r.url)}`} />}
-                          />
-                        }
-                      >
-                        <ScanSearch />
-                      </TooltipTrigger>
-                      <TooltipContent>Inspecter cette URL</TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
+                <BrandPageRow key={r.url} page={r} />
               ))}
             </TableBody>
           </Table>
