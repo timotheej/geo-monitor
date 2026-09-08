@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
-import { launchRun } from "@/lib/launch-run";
+import { cancelRun, launchRun } from "@/lib/launch-run";
 import { normalizeDomain } from "@/lib/detection";
 import { AUTH_COOKIE, sessionToken } from "@/lib/auth";
 
@@ -45,6 +45,13 @@ export async function launchRunAction(projectId: string) {
   const launched = await launchRun(projectId, "manual");
   revalidateAll();
   return launched;
+}
+
+export async function cancelRunAction(runId: string) {
+  const r = await cancelRun(runId);
+  revalidateAll();
+  revalidatePath(`/runs/${runId}`);
+  return r;
 }
 
 // ---------- Prompts ----------

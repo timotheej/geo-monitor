@@ -8,6 +8,7 @@ import { USD_TO_EUR } from "@/lib/pricing";
 import { formatDateLong, formatDateTime, formatDuration, formatEur, runDurationMs } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { RunStatusBadge, TRIGGER_LABEL } from "@/components/runs/run-status";
+import { StopRunButton } from "@/components/runs/stop-run-button";
 import { RunResultsTable } from "@/components/runs/run-results-table";
 import { AutoRefresh } from "@/components/runs/auto-refresh";
 import { ResultSheet } from "@/components/result/result-sheet";
@@ -43,6 +44,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps<
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-medium tracking-tight">Run du {formatDateLong(run.startedAt)}</h1>
           <RunStatusBadge status={run.status} />
+          {live ? <StopRunButton runId={run.id} /> : null}
         </div>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Déclenché {TRIGGER_LABEL[run.trigger]}

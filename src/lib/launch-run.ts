@@ -21,3 +21,19 @@ export async function launchAllProjects(trigger: RunTrigger) {
   const projects = await db.select({ id: schema.projects.id }).from(schema.projects);
   return Promise.all(projects.map((p) => launchRun(p.id, trigger)));
 }
+
+/** Arrête un run en cours : annule le workflow (les tâches déjà lancées se terminent) et marque le run. */
+export async function cancelRun(runId: string) {
+  const db = await getDb();
+  const { finishRun } = await import("@/lib/runs");
+  const run = await db.query.runs.findFirst({ where: (r, { eq }) => eq(r.id, runId) });
+  if (!run) throw new Error("Run introuvable");
+  if (run.status !== "running" && run.status !== "pending") return { cancelled: false, status: run.status };
+  if (run.workflowRunId) {
+    const { getWorld } = await import("workflow/runtime");
+    const world = await getWorld();
+    await world.events.create(run.workflowRunId, { eventType: "run_cancelled" }).catch(() => undefined);
+  }
+  await finishRun(runId, "failed", `Arrêté manuellement après ${run.doneCount} tâche(s) sur ${run.plannedCount}`);
+  return { cancelled: true, status: "failed" as const };
+}
