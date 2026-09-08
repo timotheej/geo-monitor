@@ -29,7 +29,7 @@ async function main() {
   if ((r.n > 0 || i.n > 0) && !force) throw new Error(`La cible contient déjà ${r.n} résultat(s) et ${i.n} inspection(s) : relancer avec --force pour écraser`);
 
   // Ordre de suppression : enfants d'abord.
-  for (const t of [schema.inspectionAnswers, schema.inspections, schema.detections, schema.results, schema.runs, schema.prompts, schema.competitors, schema.engines, schema.projects]) {
+  for (const t of [schema.pageAnalyses, schema.comparisonPages, schema.inspectionAnswers, schema.inspections, schema.detections, schema.results, schema.runs, schema.prompts, schema.competitors, schema.engines, schema.projects]) {
     await dst.delete(t);
   }
 
@@ -44,6 +44,8 @@ async function main() {
     ["detections", schema.detections],
     ["inspections", schema.inspections],
     ["inspection_answers", schema.inspectionAnswers],
+    ["page_analyses", schema.pageAnalyses],
+    ["comparison_pages", schema.comparisonPages],
   ] as const;
   for (const [name, table] of tables) {
     const rows = await src.select().from(table);
