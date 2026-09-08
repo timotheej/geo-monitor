@@ -17,7 +17,8 @@
     "stats": "tsx --tsconfig tsconfig.scripts.json scripts/stats.ts",
     "inspect": "tsx --tsconfig tsconfig.scripts.json scripts/inspect.ts",
     "engine:set": "tsx --tsconfig tsconfig.scripts.json scripts/engine-set.ts",
-    "vercel-build": "drizzle-kit migrate && next build"
+    "vercel-build": "drizzle-kit migrate && next build",
+    "db:copy-to-prod": "tsx --tsconfig tsconfig.scripts.json scripts/copy-to-prod.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.49",
