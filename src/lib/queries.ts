@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { USD_TO_EUR } from "@/lib/pricing";
 
@@ -39,7 +39,7 @@ async function brandRates(projectId: string, from: Date, to?: Date): Promise<Rat
         eq(schema.runs.projectId, projectId),
         sql`${schema.results.error} is null`,
         gte(schema.results.createdAt, from),
-        to ? sql`${schema.results.createdAt} < ${to}` : undefined,
+        to ? lt(schema.results.createdAt, to) : undefined,
       ),
     );
   return row ?? { total: 0, cited: 0, mentioned: 0 };
