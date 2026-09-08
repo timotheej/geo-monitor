@@ -30,7 +30,7 @@ async function main() {
     : DEFAULT_ENGINES;
   for (const e of wanted) {
     if (!existingEngines.some((x) => x.provider === e.provider)) {
-      await db.insert(schema.engines).values({ ...e, config: { maxSearches: 3 } });
+      await db.insert(schema.engines).values({ ...e, config: { maxSearches: 2 } });
       console.log("Moteur créé :", e.label, e.model);
     }
   }

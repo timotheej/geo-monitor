@@ -7,15 +7,15 @@ import { estimateCostUsd } from "@/lib/pricing";
 
 /**
  * Teste un prompt sur les moteurs configurés, sans base de données.
- *   pnpm run:once --prompt "Meilleurs sites pour louer à Lyon ?" --brand Gatto --domain gatto.city
+ *   pnpm run:once --prompt "Meilleurs sites pour louer à Lyon ?" --brand Rablab --domain rablab.ca
  *   pnpm run:once --prompt "..." --engine anthropic --no-search
  */
 const { values } = parseArgs({
   options: {
     prompt: { type: "string", short: "p" },
     engine: { type: "string", short: "e" },
-    brand: { type: "string", default: "Gatto" },
-    domain: { type: "string", default: "gatto.city" },
+    brand: { type: "string", default: "Rablab" },
+    domain: { type: "string", default: "rablab.ca" },
     "no-search": { type: "boolean", default: false },
     lang: { type: "string", default: "fr" },
   },
@@ -28,7 +28,7 @@ async function main() {
   const entity = { type: "brand" as const, id: "brand", terms: [values.brand!], domains: [values.domain!] };
 
   for (const def of engines) {
-    const engine: Engine = { id: def.provider, enabled: true, config: {}, createdAt: new Date(), ...def };
+    const engine: Engine = { id: def.provider, enabled: true, config: { maxSearches: 2 }, createdAt: new Date(), ...def };
     console.log(`\n=== ${engine.label} (${engine.model}) ${webSearch ? "avec" : "sans"} recherche web`);
     if (!hasApiKey(engine.provider)) {
       console.log("  clé API absente, ignoré");
@@ -39,7 +39,7 @@ async function main() {
       continue;
     }
     try {
-      const a = await runPrompt(engine, values.prompt, { webSearch, lang: values.lang!, country: "FR" });
+      const a = await runPrompt(engine, values.prompt, { webSearch, lang: values.lang!, country: "CA" });
       const [d] = detect(a.text, a.sources, [entity]);
       console.log(`  ${a.latencyMs} ms, ${a.usage.inputTokens ?? "?"} in / ${a.usage.outputTokens ?? "?"} out, ${a.usage.searches ?? 0} recherches, ~${estimateCostUsd(engine.provider, engine.config, a.usage, engine.model).toFixed(4)} USD`);
       console.log(`  cité : ${d.cited ? `oui (rang ${d.citationRank})` : "non"} | mentionné : ${d.mentioned ? `oui (${d.matchedTerms.join(", ")})` : "non"}`);

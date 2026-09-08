@@ -22,7 +22,7 @@ export type RunPromptOptions = {
 /** Moteurs par défaut créés au seed. Modèle et tarifs modifiables ensuite en base. */
 export const DEFAULT_ENGINES: Array<Pick<Engine, "provider" | "model" | "label">> = [
   { provider: "openai", model: "gpt-5.4-mini", label: "ChatGPT" },
-  { provider: "anthropic", model: "claude-opus-5", label: "Claude" },
+  { provider: "anthropic", model: "claude-sonnet-5", label: "Claude" },
   { provider: "perplexity", model: "sonar", label: "Perplexity" },
 ];
 

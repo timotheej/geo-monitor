@@ -71,7 +71,7 @@ function EngineCard({ engine }: { engine: EngineKeyStatus }) {
             </Field>
             <Field>
               <FieldLabel htmlFor={`s-${engine.id}`}>Recherches max par réponse</FieldLabel>
-              <Input id={`s-${engine.id}`} name="maxSearches" type="number" min={1} max={20} placeholder="défaut du moteur" className="font-mono" />
+              <Input id={`s-${engine.id}`} name="maxSearches" type="number" min={1} max={20} defaultValue={engine.maxSearches ?? ""} placeholder="défaut du moteur (5)" className="font-mono" />
               <FieldDescription>Limite le coût des prompts en mode web.</FieldDescription>
             </Field>
           </FieldGroup>

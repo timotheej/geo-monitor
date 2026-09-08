@@ -9,6 +9,7 @@ export type EngineKeyStatus = {
   enabled: boolean;
   hasKey: boolean;
   envVar: string;
+  maxSearches?: number;
 };
 
 const ENV_VARS: Record<string, string> = {
@@ -29,6 +30,7 @@ export async function getEngineKeyStatus(): Promise<EngineKeyStatus[]> {
     provider: e.provider,
     model: e.model,
     enabled: e.enabled,
+    maxSearches: e.config.maxSearches,
     hasKey: hasApiKey(e.provider),
     envVar: ENV_VARS[e.provider] ?? `${e.provider.toUpperCase()}_API_KEY`,
   }));
