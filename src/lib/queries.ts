@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { USD_TO_EUR } from "@/lib/pricing";
+import { APP_TIMEZONE } from "@/lib/format";
 
 /** Toutes les fonctions sont côté serveur, scoping par projet. Les taux sont en 0..1. */
 
@@ -113,7 +114,7 @@ export async function getTimeSeries(projectId: string, days = 30): Promise<Serie
   const db = await getDb();
   return db
     .select({
-      day: sql<string>`to_char(date_trunc('day', ${schema.results.createdAt}), 'YYYY-MM-DD')`,
+      day: sql<string>`to_char(date_trunc('day', ${schema.results.createdAt} at time zone ${APP_TIMEZONE}), 'YYYY-MM-DD')`,
       engineId: schema.results.engineId,
       engineLabel: schema.engines.label,
       total: sql<number>`count(*)::int`,

@@ -5,9 +5,12 @@ const pct1 = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionD
 const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const eurFine = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 3, maximumFractionDigits: 4 });
 const int = new Intl.NumberFormat("fr-FR");
-const dateTime = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-const dateLong = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-const dayShort = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
+/** Fuseau d'affichage : les serveurs (Vercel) sont en UTC, on force celui de l'équipe. */
+export const APP_TIMEZONE = process.env.APP_TIMEZONE || "Europe/Paris";
+const tz = { timeZone: APP_TIMEZONE } as const;
+const dateTime = new Intl.DateTimeFormat("fr-FR", { ...tz, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+const dateLong = new Intl.DateTimeFormat("fr-FR", { ...tz, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const dayShort = new Intl.DateTimeFormat("fr-FR", { ...tz, day: "numeric", month: "short" });
 
 /** Taux 0..1 en pourcentage. null devient un tiret court. */
 export function formatRate(v: number | null | undefined, fine = false): string {
