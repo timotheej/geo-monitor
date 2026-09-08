@@ -15,7 +15,8 @@
     "run:once": "tsx --tsconfig tsconfig.scripts.json scripts/run-once.ts",
     "run:full": "tsx --tsconfig tsconfig.scripts.json scripts/run-full.ts",
     "stats": "tsx --tsconfig tsconfig.scripts.json scripts/stats.ts",
-    "inspect": "tsx --tsconfig tsconfig.scripts.json scripts/inspect.ts"
+    "inspect": "tsx --tsconfig tsconfig.scripts.json scripts/inspect.ts",
+    "engine:set": "tsx --tsconfig tsconfig.scripts.json scripts/engine-set.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.49",
