@@ -111,6 +111,30 @@ type RawResult = {
   providerMetadata?: Record<string, unknown>;
 };
 
+const GOOGLE_REDIRECT = /^https:\/\/vertexaisearch\.cloud\.google\.com\/grounding-api-redirect\//;
+
+/** Suit une redirection Google (HEAD, sans suivre plus loin) pour retrouver l'URL réelle de la source. */
+async function resolveGoogleRedirects(sources: SourceRef[]): Promise<SourceRef[]> {
+  const resolved = await Promise.all(
+    sources.map(async (s) => {
+      if (!GOOGLE_REDIRECT.test(s.url)) return s;
+      try {
+        const res = await fetch(s.url, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(5000) });
+        const location = res.headers.get("location");
+        if (location) return { ...s, url: location, domain: normalizeDomain(location) };
+      } catch {
+        /* on garde l'URL de redirection */
+      }
+      // Sans redirection exploitable, le titre du chunk est souvent le domaine.
+      const title = s.title?.trim() ?? "";
+      return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(title) ? { ...s, domain: normalizeDomain(title) } : s;
+    }),
+  );
+  // Dédoublonnage après résolution.
+  const seen = new Set<string>();
+  return resolved.filter((s) => (seen.has(s.url) ? false : (seen.add(s.url), true)));
+}
+
 function toAnswer(engine: Engine, res: RawResult, started: number): EngineAnswer {
   const seen = new Set<string>();
   const sources: SourceRef[] = [];
@@ -190,14 +214,18 @@ export async function runPrompt(engine: Engine, promptText: string, opts: RunPro
         );
       case "perplexity":
         return finalize(await generateText({ ...base, model: perplexity(engine.model) }));
-      case "google":
-        return finalize(
+      case "google": {
+        const answer = finalize(
           await generateText({
             ...base,
             model: google(engine.model),
             tools: opts.webSearch ? { google_search: google.tools.googleSearch({}) } : undefined,
           }),
         );
+        // Le grounding renvoie des URL de redirection Google : on les résout vers la page réelle.
+        answer.sources = await resolveGoogleRedirects(answer.sources);
+        return answer;
+      }
       case "mock":
         return mockAnswer(promptText, started);
       default:
