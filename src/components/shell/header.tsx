@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Play } from "lucide-react";
@@ -8,7 +7,7 @@ import { toast } from "sonner";
 import { launchRunAction } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProjectSelect, type ProjectOption } from "./project-select";
 
 const PERIOD_ITEMS = [
   { value: "7", label: "7 derniers jours" },
@@ -82,16 +81,19 @@ function LaunchRunButton({ projectId }: { projectId: string | null }) {
   );
 }
 
-export function Header({ projectId, projectName, brandName }: { projectId: string | null; projectName: string; brandName: string }) {
+export function Header({
+  projectId,
+  projects,
+  brandName,
+}: {
+  projectId: string | null;
+  projects: ProjectOption[];
+  brandName: string;
+}) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/85 px-6 backdrop-blur supports-backdrop-filter:bg-background/70">
       <div className="flex min-w-0 items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger render={<Link href="/settings" className="truncate text-sm font-medium hover:underline underline-offset-4" />}>
-            {projectName}
-          </TooltipTrigger>
-          <TooltipContent>Modifier le projet</TooltipContent>
-        </Tooltip>
+        <ProjectSelect projects={projects} currentId={projectId} />
         {brandName ? <span className="hidden truncate text-sm text-muted-foreground sm:inline">marque suivie : {brandName}</span> : null}
       </div>
       <div className="ml-auto flex items-center gap-2">

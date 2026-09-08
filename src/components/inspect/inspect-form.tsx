@@ -8,9 +8,10 @@ import { prepareInspectionAction } from "@/lib/inspect/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function InspectForm({ projectId, disabled }: { projectId: string; disabled?: boolean }) {
+/** `initialUrl` : préremplissage depuis un lien "Inspecter cette URL" (page Sources). */
+export function InspectForm({ projectId, disabled, initialUrl = "" }: { projectId: string; disabled?: boolean; initialUrl?: string }) {
   const router = useRouter();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 

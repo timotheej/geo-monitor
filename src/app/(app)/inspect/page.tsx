@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCurrentProject } from "@/lib/queries";
+import { firstParam } from "@/lib/ui-queries";
 import { getInspectionSummaries } from "@/lib/inspect/ui-queries";
 import { PageTitle } from "@/components/page-title";
 import { NoProject } from "@/components/dashboard/empty-state";
@@ -12,7 +13,8 @@ export const metadata: Metadata = { title: "Inspecter une URL" };
 /** Liste lue en base à chaque requête, jamais figée au build. */
 export const dynamic = "force-dynamic";
 
-export default async function InspectPage() {
+export default async function InspectPage({ searchParams }: PageProps<"/inspect">) {
+  const sp = await searchParams;
   const project = await getCurrentProject();
   if (!project) return <NoProject />;
   const rows = await getInspectionSummaries(project.id, 50);
@@ -24,7 +26,7 @@ export default async function InspectPage() {
         title="Inspecter une URL"
         description="Une page précise est-elle lisible par les robots IA, et les moteurs la citent-ils quand on leur pose les questions auxquelles elle répond ?"
       />
-      <InspectForm projectId={project.id} disabled={running} />
+      <InspectForm projectId={project.id} disabled={running} initialUrl={firstParam(sp.url) ?? ""} />
       {rows.length === 0 ? (
         <InspectEmptyState />
       ) : (

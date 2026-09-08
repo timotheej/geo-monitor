@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -102,9 +103,9 @@ function DeleteButton({ prompt }: { prompt: Prompt }) {
   );
 }
 
-export function PromptsTable({ rows }: { rows: PromptRow[]; projectId: string }) {
+export function PromptsTable({ rows, initialTag }: { rows: PromptRow[]; projectId: string; initialTag?: string }) {
   const [q, setQ] = useState("");
-  const [tag, setTag] = useState(ALL);
+  const [tag, setTag] = useState(initialTag && rows.some((r) => r.prompt.tags.includes(initialTag)) ? initialTag : ALL);
   const [activeFilter, setActiveFilter] = useState(ALL);
 
   const tags = useMemo(() => Array.from(new Set(rows.flatMap((r) => r.prompt.tags))).sort(), [rows]);
@@ -178,7 +179,9 @@ export function PromptsTable({ rows }: { rows: PromptRow[]; projectId: string })
               filtered.map(({ prompt, citationRate30 }) => (
                 <TableRow key={prompt.id} className={cn(!prompt.active && "text-muted-foreground")}>
                   <TableCell className="max-w-0 pl-4 whitespace-normal">
-                    <span className="line-clamp-2 leading-snug">{prompt.text}</span>
+                    <Link href={`/prompts/${prompt.id}`} className="line-clamp-2 leading-snug underline-offset-4 hover:underline">
+                      {prompt.text}
+                    </Link>
                   </TableCell>
                   <TableCell className="font-mono text-xs uppercase">{prompt.lang}</TableCell>
                   <TableCell>

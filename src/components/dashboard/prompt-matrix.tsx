@@ -16,7 +16,7 @@ export function PromptMatrix({ rows, engines, days }: { rows: MatrixRow[]; engin
     <Card>
       <CardHeader className="border-b">
         <CardTitle>Prompts × moteurs</CardTitle>
-        <CardDescription>Dernier résultat connu pour chaque couple, et taux de citation sur {days} jours. Une pastille ouvre la réponse brute.</CardDescription>
+        <CardDescription>Dernier résultat connu pour chaque couple, et taux de citation sur {days} jours. Une pastille ouvre la réponse brute, le texte ouvre la fiche du prompt.</CardDescription>
         <StatusLegend className="mt-1" />
       </CardHeader>
       <CardContent className="px-0">
@@ -45,7 +45,9 @@ export function PromptMatrix({ rows, engines, days }: { rows: MatrixRow[]; engin
               {rows.map(({ prompt, cells, citationRate }) => (
                 <TableRow key={prompt.id} className={cn(!prompt.active && "opacity-50")}>
                   <TableCell className="max-w-0 pl-5 whitespace-normal">
-                    <span className="line-clamp-2 text-sm leading-snug">{prompt.text}</span>
+                    <Link href={`/prompts/${prompt.id}`} className="line-clamp-2 text-sm leading-snug underline-offset-4 hover:underline">
+                      {prompt.text}
+                    </Link>
                     {!prompt.active ? <span className="text-xs text-muted-foreground">désactivé</span> : null}
                   </TableCell>
                   <TableCell className="text-center">
