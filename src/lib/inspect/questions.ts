@@ -7,6 +7,7 @@ import { findTerm, normalizeText } from "@/lib/detection";
 import { hasApiKey } from "@/lib/engines";
 import { estimateCostUsd } from "@/lib/pricing";
 import type { PageInfo } from "./extract";
+import { guessLang } from "@/lib/citability/signals";
 
 export type GeneratedQuestion = { text: string; lang: string; source: "generated" | "manual" };
 
@@ -50,6 +51,7 @@ export async function generateQuestions(
     : `You generate questions a person would ask an AI assistant without knowing the page below, and that this page answers well. Rules: natural, short questions in the page's language, phrased like a real conversation, never naming any company, brand, website or author, never copying the title verbatim. Vary the angles: concrete problem, comparison, "how", "how much", "which tool". Anchor geographically when the page is (city, province, country).`;
 
   const prompt = [
+    `Langue attendue des questions : ${fr ? "français" : lang === "en" ? "anglais" : lang}`,
     `Titre : ${page.title}`,
     page.h1 && page.h1 !== page.title ? `H1 : ${page.h1}` : "",
     page.description ? `Description : ${page.description}` : "",
@@ -67,7 +69,7 @@ export async function generateQuestions(
   for (const q of res.output?.questions ?? []) {
     const term = violatesNeutrality(q.text, forbidden);
     if (term) rejected.push({ text: q.text, term });
-    else questions.push({ text: q.text.trim(), lang, source: "generated" });
+    else questions.push({ text: q.text.trim(), lang: guessLang(q.text) ?? lang, source: "generated" });
   }
   const costUsd = estimateCostUsd(m.provider, {}, { inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens }, m.id);
   return { questions, rejected, costUsd };

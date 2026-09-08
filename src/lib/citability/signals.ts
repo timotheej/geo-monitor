@@ -182,6 +182,20 @@ const strOf = (v: unknown): string | null => {
  * Texte principal : même délimitation que extractPage (main/article, sans nav, header, footer, aside, form).
  * -------------------------------------------------------------------------- */
 
+/** Texte d'un ensemble d'éléments avec un espace entre chaque nœud texte (cheerio colle « RablabServices » sinon). */
+function spacedText($: CheerioAPI, selector: string): string {
+  return clean(
+    $(selector)
+      .find("*")
+      .addBack()
+      .contents()
+      .filter((_, n) => n.type === "text")
+      .map((_, n) => ("data" in n ? String(n.data) : ""))
+      .get()
+      .join(" "),
+  );
+}
+
 function mainScope($: CheerioAPI) {
   const main = $("main, article, [role=main]").first();
   const scope = (main.length ? main : $("body")).clone();
@@ -492,8 +506,8 @@ export function extractSignals(html: string, opts: ExtractSignalsOptions): PageS
   let brandConsistent = false;
   if (brandName) {
     const b = normalizeText(brandName);
-    const headerText = normalizeText(clean($("header, [role=banner]").text()));
-    const footerText = normalizeText(clean($("footer, [role=contentinfo]").text()));
+    const headerText = normalizeText(spacedText($, "header, [role=banner]"));
+    const footerText = normalizeText(spacedText($, "footer, [role=contentinfo]"));
     const titleText = normalizeText(base.title);
     brandConsistent = findTerm(titleText, b) >= 0 && findTerm(headerText, b) >= 0 && findTerm(footerText, b) >= 0;
   }
