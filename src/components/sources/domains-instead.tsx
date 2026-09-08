@@ -7,9 +7,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { EngineMark } from "@/components/engines/engine-logo";
 import { EmptyCard } from "@/components/empty-card";
 import { cn } from "@/lib/utils";
+import { AddCompetitorButton } from "@/components/competitors/add-competitor-button";
 
 /** Domaines cités quand la marque ne l'est pas : les sites où obtenir une mention ou une fiche. */
-export function DomainsInstead({ rows, hasData }: { rows: DomainOpportunity[]; hasData: boolean }) {
+export function DomainsInstead({ rows, hasData, projectId }: { rows: DomainOpportunity[]; hasData: boolean; projectId: string }) {
   return (
     <Card>
       <CardHeader className="border-b">
@@ -36,7 +37,7 @@ export function DomainsInstead({ rows, hasData }: { rows: DomainOpportunity[]; h
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.domain}>
+                <TableRow key={r.domain} className="group">
                   <TableCell className="pl-5">
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-sm">{r.domain}</span>
@@ -44,7 +45,9 @@ export function DomainsInstead({ rows, hasData }: { rows: DomainOpportunity[]; h
                         <Badge variant="outline" className="border-rival/50 text-rival">
                           {r.entityName}
                         </Badge>
-                      ) : null}
+                      ) : (
+                        <AddCompetitorButton projectId={projectId} domain={r.domain} />
+                      )}
                     </span>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{formatInt(r.withoutBrand)}</TableCell>

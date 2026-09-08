@@ -15,7 +15,7 @@ const list = (v: unknown) =>
 const domainList = (v: unknown) => list(v).map(normalizeDomain).filter(Boolean);
 
 function revalidateAll() {
-  for (const p of ["/", "/prompts", "/runs", "/settings"]) revalidatePath(p);
+  for (const p of ["/", "/prompts", "/runs", "/settings", "/engines", "/competitors", "/sources"]) revalidatePath(p);
 }
 
 // ---------- Auth ----------
@@ -142,6 +142,33 @@ export async function addCompetitor(projectId: string, input: Record<string, unk
   const db = await getDb();
   await db.insert(schema.competitors).values({ ...data, projectId });
   revalidateAll();
+}
+
+/** Nom lisible à partir d'un domaine : "agencies.semrush.com" donne "Semrush", "mylittlebigweb.com" donne "Mylittlebigweb". */
+export async function competitorNameFromDomain(domain: string): Promise<string> {
+  const host = normalizeDomain(domain);
+  const parts = host.split(".");
+  // On retire le TLD (et un éventuel second niveau court comme "co" ou "com" dans "x.com.au").
+  const labels = parts.slice(0, parts.length >= 3 && parts[parts.length - 2].length <= 3 ? -2 : -1);
+  const base = labels[labels.length - 1] ?? host;
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+/** Ajoute un domaine cité comme concurrent suivi, sauf s'il appartient déjà à la marque ou à un concurrent. */
+export async function addCompetitorFromDomain(projectId: string, domain: string) {
+  const host = normalizeDomain(domain);
+  if (!host) return { ok: false as const, error: "Domaine invalide" };
+  const db = await getDb();
+  const project = await db.query.projects.findFirst({ where: eq(schema.projects.id, projectId), with: { competitors: true } });
+  if (!project) return { ok: false as const, error: "Projet introuvable" };
+  const owns = (domains: string[]) => domains.some((d) => host === d || host.endsWith(`.${d}`));
+  if (owns(project.domains)) return { ok: false as const, error: "Ce domaine appartient à la marque" };
+  const existing = project.competitors.find((c) => owns(c.domains));
+  if (existing) return { ok: false as const, error: `Déjà suivi comme ${existing.name}` };
+  const name = await competitorNameFromDomain(host);
+  const [row] = await db.insert(schema.competitors).values({ projectId, name, aliases: [], domains: [host] }).returning();
+  revalidateAll();
+  return { ok: true as const, data: { id: row.id, name } };
 }
 
 export async function deleteCompetitor(id: string) {

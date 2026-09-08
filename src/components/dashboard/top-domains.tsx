@@ -3,8 +3,9 @@ import { formatInt, formatRate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { AddCompetitorButton } from "@/components/competitors/add-competitor-button";
 
-export function TopDomains({ rows }: { rows: DomainRow[] }) {
+export function TopDomains({ rows, projectId }: { rows: DomainRow[]; projectId: string }) {
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
     <Card>
@@ -18,7 +19,7 @@ export function TopDomains({ rows }: { rows: DomainRow[] }) {
         ) : (
           <ol className="space-y-2">
             {rows.map((r, i) => (
-              <li key={r.domain} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
+              <li key={r.domain} className="group grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                 <span className="flex min-w-0 items-center gap-1.5">
                   <span className={cn("truncate text-sm", r.entity === "brand" && "font-medium text-signal")}>{r.domain}</span>
@@ -26,7 +27,9 @@ export function TopDomains({ rows }: { rows: DomainRow[] }) {
                     <Badge variant="outline" className={cn(r.entity === "brand" ? "border-signal/50 text-signal" : "border-rival/50 text-rival")}>
                       {r.entity === "brand" ? "marque" : r.entityName}
                     </Badge>
-                  ) : null}
+                  ) : (
+                    <AddCompetitorButton projectId={projectId} domain={r.domain} />
+                  )}
                 </span>
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">
                   {formatInt(r.count)} <span className="text-muted-foreground/60">({formatRate(r.share)})</span>

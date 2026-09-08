@@ -28,7 +28,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/sources"
   return (
     <div className="space-y-6">
       <PageTitle title="Sources et opportunités" description={`Qu'est-ce que je fais lundi ? Les sites à travailler, les pages qui marchent et les questions perdues, sur ${days} jours.`} />
-      <DomainsInstead rows={domains} hasData={hasData} />
+      <DomainsInstead rows={domains} hasData={hasData} projectId={project.id} />
       <div className="grid gap-6 xl:grid-cols-2">
         <BrandPages rows={pages} brandName={project.brandName} hasDomains={project.domains.length > 0} />
         <PromptsWithoutBrand rows={prompts} hasData={hasData} />

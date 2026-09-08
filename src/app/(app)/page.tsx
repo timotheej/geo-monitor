@@ -49,7 +49,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
             <ShareOfVoiceBars rows={sov} />
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
-            <TopDomains rows={domains} />
+            <TopDomains rows={domains} projectId={project.id} />
             <QuickOpportunities rows={opportunities} hasData={hasData} />
           </div>
         </>

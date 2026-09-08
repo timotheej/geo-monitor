@@ -18,6 +18,14 @@ async function main() {
   const dst = pg({ connection: { url: target, max: 2, prepare: false }, schema });
 
   const [[r], [i]] = await Promise.all([dst.select({ n: count() }).from(schema.results), dst.select({ n: count() }).from(schema.inspections)]);
+  const targetRuns = await dst.select({ id: schema.runs.id, startedAt: schema.runs.startedAt, doneCount: schema.runs.doneCount, status: schema.runs.status }).from(schema.runs);
+  console.log(`Cible : ${r.n} résultat(s), ${i.n} inspection(s), ${targetRuns.length} run(s)`);
+  for (const run of targetRuns) console.log(`  run ${run.id} ${run.startedAt.toISOString()} ${run.status} ${run.doneCount} tâches`);
+  if (process.argv.includes("--check")) {
+    await dst.$client.end();
+    await src.$client.close();
+    return;
+  }
   if ((r.n > 0 || i.n > 0) && !force) throw new Error(`La cible contient déjà ${r.n} résultat(s) et ${i.n} inspection(s) : relancer avec --force pour écraser`);
 
   // Ordre de suppression : enfants d'abord.
