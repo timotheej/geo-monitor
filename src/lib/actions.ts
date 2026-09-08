@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { cancelRun, launchRun } from "@/lib/launch-run";
+import { recomputeDetections } from "@/lib/runs";
 import { normalizeDomain } from "@/lib/detection";
 import { AUTH_COOKIE, sessionToken } from "@/lib/auth";
 
@@ -128,6 +129,7 @@ export async function updateProject(projectId: string, input: Record<string, unk
   const data = projectSchema.parse({ ...input, aliases: list(input.aliases), domains: domainList(input.domains) });
   const db = await getDb();
   await db.update(schema.projects).set(data).where(eq(schema.projects.id, projectId));
+  await recomputeDetections(projectId);
   revalidateAll();
 }
 
@@ -141,6 +143,7 @@ export async function addCompetitor(projectId: string, input: Record<string, unk
   const data = competitorSchema.parse({ ...input, aliases: list(input.aliases), domains: domainList(input.domains) });
   const db = await getDb();
   await db.insert(schema.competitors).values({ ...data, projectId });
+  await recomputeDetections(projectId);
   revalidateAll();
 }
 
@@ -167,13 +170,15 @@ export async function addCompetitorFromDomain(projectId: string, domain: string)
   if (existing) return { ok: false as const, error: `Déjà suivi comme ${existing.name}` };
   const name = await competitorNameFromDomain(host);
   const [row] = await db.insert(schema.competitors).values({ projectId, name, aliases: [], domains: [host] }).returning();
+  const { results } = await recomputeDetections(projectId);
   revalidateAll();
-  return { ok: true as const, data: { id: row.id, name } };
+  return { ok: true as const, data: { id: row.id, name, recomputed: results } };
 }
 
 export async function deleteCompetitor(id: string) {
   const db = await getDb();
-  await db.delete(schema.competitors).where(eq(schema.competitors.id, id));
+  const [row] = await db.delete(schema.competitors).where(eq(schema.competitors.id, id)).returning({ projectId: schema.competitors.projectId });
+  if (row) await recomputeDetections(row.projectId);
   revalidateAll();
 }
 

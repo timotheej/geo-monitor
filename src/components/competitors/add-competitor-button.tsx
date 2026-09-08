@@ -24,7 +24,7 @@ export function AddCompetitorButton({ projectId, domain, className }: { projectI
         e.preventDefault();
         startTransition(async () => {
           const r = await addCompetitorFromDomain(projectId, domain);
-          if (r.ok) toast.success(`${r.data.name} suivi comme concurrent`, { description: "Les détections s'appliquent aux prochains runs. Alias et domaines modifiables dans Paramètres." });
+          if (r.ok) toast.success(`${r.data.name} suivi comme concurrent`, { description: `Détections recalculées sur ${r.data.recomputed} réponses. Alias et domaines modifiables dans Paramètres.` });
           else toast.error(r.error);
           router.refresh();
         });

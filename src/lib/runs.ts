@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import type { Competitor, Engine, Project, Prompt, RunTrigger } from "@/db/schema";
 import { detect, type Entity } from "@/lib/detection";
@@ -143,4 +143,27 @@ export async function getRunCost(runId: string): Promise<number> {
   const db = await getDb();
   const run = await db.query.runs.findFirst({ where: eq(schema.runs.id, runId), columns: { costEstimate: true } });
   return run?.costEstimate ?? 0;
+}
+
+/**
+ * Recalcule toutes les détections d'un projet à partir des résultats stockés
+ * (après ajout ou modification d'un concurrent, d'un alias ou d'un domaine).
+ */
+export async function recomputeDetections(projectId: string): Promise<{ results: number }> {
+  const db = await getDb();
+  const project = await db.query.projects.findFirst({ where: eq(schema.projects.id, projectId), with: { competitors: true } });
+  if (!project) throw new Error("Projet introuvable");
+  const entities = entitiesFor(project, project.competitors);
+  const rows = await db
+    .select({ id: schema.results.id, rawText: schema.results.rawText, sources: schema.results.sources, error: schema.results.error })
+    .from(schema.results)
+    .innerJoin(schema.runs, eq(schema.results.runId, schema.runs.id))
+    .where(eq(schema.runs.projectId, projectId));
+  for (let i = 0; i < rows.length; i += 100) {
+    const batch = rows.slice(i, i + 100);
+    await db.delete(schema.detections).where(inArray(schema.detections.resultId, batch.map((r) => r.id)));
+    const values = batch.filter((r) => !r.error).flatMap((r) => detect(r.rawText, r.sources, entities).map((d) => ({ ...d, resultId: r.id })));
+    if (values.length) await db.insert(schema.detections).values(values);
+  }
+  return { results: rows.length };
 }
