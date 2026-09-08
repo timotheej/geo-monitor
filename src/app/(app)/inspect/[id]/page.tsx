@@ -13,6 +13,8 @@ import { PageCard } from "@/components/inspect/page-card";
 import { TestSection } from "@/components/inspect/test-section";
 import { AnswersSection } from "@/components/inspect/answers-section";
 import { HistorySection } from "@/components/inspect/history-section";
+import { CitabilitySection } from "@/components/inspect/citability-section";
+import { getAnalysisForInspection, judgeAvailable } from "@/lib/citability/analysis";
 import { InspectionActions } from "@/components/inspect/inspection-actions";
 import { shortUrl } from "@/lib/inspect/verdict";
 
@@ -26,7 +28,11 @@ export default async function InspectionPage({ params }: PageProps<"/inspect/[id
   if (!data) notFound();
   const { inspection, engines } = data;
   const live = inspection.status === "running";
-  const [history, avgCost] = await Promise.all([getUrlHistory(inspection.projectId, inspection.url, HISTORY_DAYS), inspection.status === "draft" ? getEngineAvgCost() : Promise.resolve({})]);
+  const [history, avgCost, analysis] = await Promise.all([
+    getUrlHistory(inspection.projectId, inspection.url, HISTORY_DAYS),
+    inspection.status === "draft" ? getEngineAvgCost() : Promise.resolve({}),
+    inspection.status === "done" ? getAnalysisForInspection(id) : Promise.resolve(null),
+  ]);
   const pct = inspection.plannedCount ? Math.min(100, (inspection.doneCount / inspection.plannedCount) * 100) : 0;
 
   return (
@@ -93,6 +99,8 @@ export default async function InspectionPage({ params }: PageProps<"/inspect/[id
       ) : (
         <AnswersSection data={data} />
       )}
+
+      {inspection.status === "done" ? <CitabilitySection inspectionId={inspection.id} questions={inspection.questions.length} analysis={analysis ?? null} judgeAvailable={judgeAvailable(engines)} /> : null}
 
       <HistorySection rows={history} days={HISTORY_DAYS} />
       <AutoRefresh active={live} intervalMs={3000} />
