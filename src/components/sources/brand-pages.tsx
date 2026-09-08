@@ -22,7 +22,7 @@ export function BrandPages({ rows, brandName, hasDomains }: { rows: BrandPage[];
             Inspectez une page clé pour vérifier qu&apos;elle est lisible par les robots IA et testée sur les questions auxquelles elle répond.
           </EmptyCard>
         ) : (
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-5">URL</TableHead>

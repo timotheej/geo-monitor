@@ -70,9 +70,11 @@ export function BrandPageRow({ page }: { page: BrandPage }) {
       </TableRow>
       {open ? (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={5} className="bg-muted/20 px-5 py-3">
+          <TableCell colSpan={5} className="bg-muted/20 px-5 py-3 whitespace-normal">
+            {/* w-0 + min-w-full : le contenu prend la largeur de la cellule sans élargir le tableau */}
+            <div className="w-0 min-w-full">
             <p className="mb-2 text-xs text-muted-foreground">
-              {page.citations.length} réponse{page.citations.length > 1 ? "s" : ""} où cette page apparaît dans les sources. Cliquez sur une ligne pour lire la réponse.
+              {page.citations.length} réponse{page.citations.length > 1 ? "s" : ""} où cette page apparaît dans les sources, la plus récente en premier. Cliquez sur une ligne pour lire la réponse.
             </p>
             <ul className="divide-y rounded-md border bg-background">
               {page.citations.map((c) => (
@@ -83,11 +85,12 @@ export function BrandPageRow({ page }: { page: BrandPage }) {
                     <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
                       {c.cited ? `rang ${c.rank}` : "lue, non utilisée"}
                     </span>
-                    <span className="hidden shrink-0 font-mono text-xs text-muted-foreground tabular-nums sm:inline">{formatDateTime(c.date)}</span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">{formatDateTime(c.date)}</span>
                   </ResultLink>
                 </li>
               ))}
             </ul>
+            </div>
           </TableCell>
         </TableRow>
       ) : null}
