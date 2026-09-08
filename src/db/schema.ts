@@ -261,6 +261,73 @@ export const inspectionAnswers = pgTable(
   (t) => [uniqueIndex("inspection_answers_uniq").on(t.inspectionId, t.questionIndex, t.engineId)],
 );
 
+export type JudgeQuestionNotes = {
+  question: string;
+  intent: "comparative" | "informational" | "price" | "local" | "resource";
+  place: string | null;
+  pageType: string;
+  fit: 0 | 1 | 2 | 3;
+  fitNote: string;
+  directAnswer: 0 | 1 | 2 | 3;
+  directAnswerPassage: string | null;
+  specificity: 0 | 1 | 2 | 3;
+  strengths: string[];
+  gaps: string[];
+  actions: string[];
+};
+
+/** Analyse de citabilité d'une page : signaux, points de la grille, lecture par le modèle, comparaison. */
+export const pageAnalyses = pgTable(
+  "page_analyses",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .references(() => projects.id, { onDelete: "cascade" })
+      .notNull(),
+    inspectionId: text("inspection_id").references(() => inspections.id, { onDelete: "set null" }),
+    url: text("url").notNull(),
+    normalizedUrl: text("normalized_url").notNull(),
+    contentHash: text("content_hash"),
+    gridVersion: text("grid_version").notNull(),
+    status: text("status").$type<"running" | "done" | "failed">().default("running").notNull(),
+    /** Signaux extraits de la page (PageSignals) */
+    signals: jsonb("signals").$type<Record<string, unknown>>(),
+    pageType: text("page_type"),
+    /** Détail des points par signal : { key, label, value, points, max, note }[] pour A et B */
+    access: jsonb("access").$type<{ total: number; max: number; rows: Array<Record<string, unknown>> } | null>(),
+    content: jsonb("content").$type<{ total: number; max: number; rows: Array<Record<string, unknown>> } | null>(),
+    /** Résultat observé : { total, max, perEngine: [{ engineId, label, value, answers }] } */
+    result: jsonb("result").$type<{ total: number; max: number; perEngine: Array<Record<string, unknown>> } | null>(),
+    score: integer("score"),
+    confidence: text("confidence").$type<"low" | "medium" | "high">(),
+    judge: jsonb("judge").$type<JudgeQuestionNotes[]>().default([]).notNull(),
+    /** Pages citées à la place, avec leurs signaux et leur type, pour la comparaison */
+    comparison: jsonb("comparison").$type<Record<string, unknown> | null>(),
+    costEstimate: real("cost_estimate").default(0).notNull(),
+    error: text("error"),
+    createdAt: createdAt(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("page_analyses_project_url_idx").on(t.projectId, t.normalizedUrl), index("page_analyses_inspection_idx").on(t.inspectionId)],
+);
+
+/** Cache partagé des pages tierces récupérées pour la comparaison. */
+export const comparisonPages = pgTable(
+  "comparison_pages",
+  {
+    id: id(),
+    normalizedUrl: text("normalized_url").notNull(),
+    url: text("url").notNull(),
+    contentHash: text("content_hash"),
+    httpStatus: integer("http_status"),
+    signals: jsonb("signals").$type<Record<string, unknown> | null>(),
+    pageType: text("page_type"),
+    error: text("error"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("comparison_pages_url_uniq").on(t.normalizedUrl)],
+);
+
 export const projectsRelations = relations(projects, ({ many }) => ({
   competitors: many(competitors),
   prompts: many(prompts),
@@ -303,4 +370,6 @@ export type Run = typeof runs.$inferSelect;
 export type Result = typeof results.$inferSelect;
 export type Detection = typeof detections.$inferSelect;
 export type Inspection = typeof inspections.$inferSelect;
+export type PageAnalysis = typeof pageAnalyses.$inferSelect;
+export type ComparisonPage = typeof comparisonPages.$inferSelect;
 export type InspectionAnswer = typeof inspectionAnswers.$inferSelect;
