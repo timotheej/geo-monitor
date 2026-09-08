@@ -1,6 +1,6 @@
 # GEO Monitor
 
-Outil interne qui mesure chaque jour si un site est cité ou mentionné par ChatGPT, Claude et Perplexity sur une liste de prompts cibles, et suit l'évolution face aux concurrents. Cahier des charges : `docs/CDC.md`.
+Outil interne qui mesure chaque jour si un site est cité ou mentionné par ChatGPT, Claude, Perplexity et Gemini sur une liste de prompts cibles, et suit l'évolution face aux concurrents. Cahier des charges : `docs/CDC.md`.
 
 ## Stack
 
@@ -35,6 +35,26 @@ L'inspection d'URL (page "Inspecter") suit l'analyse de `docs/inspection-url.md`
 
 Un run manuel depuis l'UI ou via `POST /api/runs` avec `{ "projectId": "..." }` passe par le workflow durable. Le cron quotidien appelle `GET /api/cron/daily` avec `Authorization: Bearer $CRON_SECRET`.
 
+Routes utilitaires (même en-tête `Authorization: Bearer $CRON_SECRET` hors session) :
+
+| Route | Rôle |
+|---|---|
+| `GET /api/runs?limit=3` | Derniers runs du projet courant |
+| `POST /api/runs/[id]/append` avec `{ "provider": "google" }` ou `{ "engineId": "..." }` | Complète un run terminé avec un moteur : mêmes prompts actifs, tâches déjà faites ignorées, le run repasse en `running` puis `done` |
+| `GET /api/engines`, `POST /api/engines` avec `{ provider, model, label, config?, enabled? }` | Liste les moteurs, crée un moteur s'il n'en existe pas pour ce fournisseur |
+| `POST /api/runs/[id]/cancel` | Arrête un run en cours |
+
+## Moteurs
+
+| Moteur | Fournisseur | Modèle par défaut | Variable | Recherche web |
+|---|---|---|---|---|
+| ChatGPT | `openai` | `gpt-5.4-mini` | `OPENAI_API_KEY` | outil `web_search`, forcé |
+| Claude | `anthropic` | `claude-haiku-4-5` | `ANTHROPIC_API_KEY` | outil `web_search`, `maxSearches` par moteur |
+| Perplexity | `perplexity` | `sonar` | `PERPLEXITY_API_KEY` | toujours, pas de mode mémoire |
+| Gemini | `google` | `gemini-3.8-flash` | `GEMINI_API_KEY` | grounding Google Search (`google_search`), sources dans `sources` |
+
+Gemini : clé à créer dans Google AI Studio. Le grounding Google Search n'est pas disponible sur le palier gratuit (429 `RESOURCE_EXHAUSTED` immédiat) : il faut activer la facturation sur le projet AI Studio, puis 5000 requêtes groundées par mois sont offertes et les suivantes coûtent 14 USD / 1000. Coût mesuré sans recherche : environ 0,006 USD par réponse (36 tokens en entrée, 1700 en sortie, la sortie inclut le raisonnement), soit environ 0,02 USD par réponse avec grounding une fois le quota gratuit épuisé. Tarif lancement 0,75 / 3,75 USD par million de tokens jusqu'au 31 décembre 2026, puis 1,5 / 7,5.
+
 ## Tester sans clés API
 
 ```bash
@@ -48,7 +68,7 @@ Le moteur mock est ignoré en production quoi qu'il arrive.
 
 1. Importer le dépôt dans Vercel (framework Next.js détecté, Fluid compute actif par défaut). La région est fixée à `iad1` dans `vercel.json`, celle du backend Workflow.
 2. Ajouter une base Postgres Neon depuis le Marketplace, région US East (Virginie) pour rester à côté des fonctions, et renseigner `DATABASE_URL` avec l'URL "pooled".
-3. Variables d'environnement : `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` (au moins une), `CRON_SECRET`, `APP_PASSWORD`. Sans `APP_PASSWORD`, la production répond 503.
+3. Variables d'environnement : `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`, `GEMINI_API_KEY` (au moins une), `CRON_SECRET`, `APP_PASSWORD`. Sans `APP_PASSWORD`, la production répond 503.
 4. Le script `vercel-build` applique les migrations Drizzle avant `next build`. Après le premier déploiement, exécuter le seed une fois contre la base de production : `DATABASE_URL=... pnpm seed`.
 5. Aucun cron n'est activé pour l'instant : les runs se lancent depuis l'interface ou via `POST /api/runs`. Pour activer le run quotidien, ajouter dans `vercel.json` : `"crons": [{ "path": "/api/cron/daily", "schedule": "0 11 * * *" }]` (11 h UTC, soit 7 h à Montréal). Vercel ajoute lui-même l'en-tête `Authorization: Bearer $CRON_SECRET`.
 6. Workflow utilise automatiquement le monde Vercel (stockage et file d'attente gérés). Les runs sont visibles dans l'onglet Workflow du projet Vercel, ou via `npx workflow web --backend vercel`.
@@ -66,6 +86,6 @@ src/lib/queries    requêtes du dashboard
 src/lib/actions    server actions (prompts, projet, concurrents, moteurs, auth)
 src/lib/inspect    inspection d'URL : normalisation, garde SSRF, robots.txt, extraction, questions, service, workflow
 src/workflows      orchestration durable (lots de 3, plafond de coût)
-src/app/api        POST /api/runs, GET /api/cron/daily
+src/app/api        POST /api/runs, POST /api/runs/[id]/append, /api/engines, GET /api/cron/daily
 scripts/           seed, run:once, run:full
 ```

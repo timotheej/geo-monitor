@@ -169,6 +169,7 @@ Chaque jalon est livrable et testable seul. On ne passe au suivant qu'après une
 - **Nouvelles tentatives** : 3 essais avec backoff dans l'appel moteur sur 429, 5xx et erreurs réseau, puis le résultat est stocké avec `error`. L'étape de workflow reste idempotente grâce à l'index unique (run, prompt, moteur, répétition).
 - **Authentification** : mot de passe unique `APP_PASSWORD`, cookie dérivé par hachage, vérifié dans `src/proxy.ts`. Le cron et les routes internes Workflow sont exclus.
 - **Coût** : estimé côté serveur à partir des tokens et du nombre de recherches, avec des tarifs indicatifs modifiables par moteur. Affiché en euros (taux fixe 0,92).
+- **Gemini** (8 septembre 2026) : fournisseur `google` via `@ai-sdk/google`, modèle `gemini-3.8-flash` (génération Flash la plus récente, 0,75 / 3,75 USD par million de tokens jusqu'à fin 2026), clé `GEMINI_API_KEY`, grounding Google Search en mode recherche web (14 USD / 1000 requêtes groundées après 5000 gratuites par mois, compté une fois par réponse). Répond de mémoire sans outil pour les prompts "mémoire seule". Le grounding exige la facturation activée sur le projet AI Studio : le moteur est créé désactivé tant que ce n'est pas fait. Un run terminé peut être complété avec un moteur ajouté après coup via `POST /api/runs/[id]/append` (fonction `appendEngineToRun`), sans recréer de run.
 
 ## 14. Première mesure Rablab (6 septembre 2026, ChatGPT gpt-5.4-mini)
 

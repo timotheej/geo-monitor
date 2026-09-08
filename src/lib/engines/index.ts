@@ -2,6 +2,7 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { perplexity } from "@ai-sdk/perplexity";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { Engine, Provider, SourceRef, UsageRef } from "@/db/schema";
 import { normalizeDomain } from "@/lib/detection";
 
@@ -24,7 +25,11 @@ export const DEFAULT_ENGINES: Array<Pick<Engine, "provider" | "model" | "label">
   { provider: "openai", model: "gpt-5.4-mini", label: "ChatGPT" },
   { provider: "anthropic", model: "claude-haiku-4-5", label: "Claude" },
   { provider: "perplexity", model: "sonar", label: "Perplexity" },
+  { provider: "google", model: "gemini-3.8-flash", label: "Gemini" },
 ];
+
+/** La clé Google s'appelle GEMINI_API_KEY dans ce projet (le SDK attend GOOGLE_GENERATIVE_AI_API_KEY par défaut). */
+const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
 
 /** Perplexity cherche toujours sur le web : pas de mode "mémoire seule". */
 export function supportsMode(provider: Provider, webSearch: boolean): boolean {
@@ -34,7 +39,12 @@ export function supportsMode(provider: Provider, webSearch: boolean): boolean {
 /** Le moteur "mock" ne sort jamais en production : il sert à tester le pipeline sans clés. */
 export function hasApiKey(provider: Provider): boolean {
   if (provider === "mock") return process.env.GEO_MOCK_ENGINE === "1" && process.env.NODE_ENV !== "production";
-  const key = { openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", perplexity: "PERPLEXITY_API_KEY" }[provider];
+  const key = {
+    openai: "OPENAI_API_KEY",
+    anthropic: "ANTHROPIC_API_KEY",
+    perplexity: "PERPLEXITY_API_KEY",
+    google: "GEMINI_API_KEY",
+  }[provider];
   return Boolean(process.env[key]);
 }
 
@@ -112,6 +122,19 @@ function toAnswer(engine: Engine, res: RawResult, started: number): EngineAnswer
   const searchCalls = res.steps.reduce((n, step) => n + step.toolCalls.filter((c) => c.toolName === "web_search").length, 0);
   const pplxSearches = (res.providerMetadata?.perplexity as { usage?: { numSearchQueries?: number } } | undefined)?.usage
     ?.numSearchQueries;
+  // Gemini : le grounding est facturé par requête (prompt), pas par recherche. On compte 1 dès qu'il a cherché.
+  const geminiQueries = (res.providerMetadata?.google as { groundingMetadata?: { webSearchQueries?: string[] | null } } | undefined)
+    ?.groundingMetadata?.webSearchQueries;
+  const searches =
+    engine.provider === "perplexity"
+      ? (pplxSearches ?? 1)
+      : engine.provider === "google"
+        ? geminiQueries === undefined
+          ? 0
+          : geminiQueries?.length
+            ? 1
+            : 0
+        : searchCalls;
   return {
     text: res.text,
     sources,
@@ -119,7 +142,7 @@ function toAnswer(engine: Engine, res: RawResult, started: number): EngineAnswer
       inputTokens: res.usage.inputTokens,
       outputTokens: res.usage.outputTokens,
       totalTokens: res.usage.totalTokens,
-      searches: engine.provider === "perplexity" ? (pplxSearches ?? 1) : searchCalls,
+      searches,
     },
     latencyMs: Date.now() - started,
   };
@@ -167,6 +190,14 @@ export async function runPrompt(engine: Engine, promptText: string, opts: RunPro
         );
       case "perplexity":
         return finalize(await generateText({ ...base, model: perplexity(engine.model) }));
+      case "google":
+        return finalize(
+          await generateText({
+            ...base,
+            model: google(engine.model),
+            tools: opts.webSearch ? { google_search: google.tools.googleSearch({}) } : undefined,
+          }),
+        );
       case "mock":
         return mockAnswer(promptText, started);
       default:

@@ -59,7 +59,7 @@ export const prompts = pgTable(
   (t) => [index("prompts_project_idx").on(t.projectId, t.active)],
 );
 
-export type Provider = "openai" | "anthropic" | "perplexity" | "mock";
+export type Provider = "openai" | "anthropic" | "perplexity" | "google" | "mock";
 
 export type EngineConfig = {
   /** Prix indicatifs en USD, servent uniquement à l'estimation de coût. */
