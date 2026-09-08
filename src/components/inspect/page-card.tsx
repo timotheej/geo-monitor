@@ -1,3 +1,4 @@
+import { APP_TIMEZONE } from "@/lib/format";
 import type { PageSnapshot } from "@/db/schema";
 import { formatInt } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ function formatPublished(v: string | null) {
   if (!v) return null;
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return v;
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: APP_TIMEZONE, day: "numeric", month: "long", year: "numeric" }).format(d);
 }
 
 export function PageCard({ page }: { page: PageSnapshot | null }) {
