@@ -135,6 +135,15 @@ async function resolveGoogleRedirects(sources: SourceRef[]): Promise<SourceRef[]
   return resolved.filter((s) => (seen.has(s.url) ? false : (seen.add(s.url), true)));
 }
 
+/**
+ * La variante 20260209 (filtrage dynamique) exige un modèle 4.6 ou plus récent ;
+ * Haiku 4.5 et les modèles antérieurs n'acceptent que la variante de base.
+ */
+function anthropicWebSearch(model: string, options: { maxUses: number; userLocation: { type: "approximate"; country: string; timezone?: string } }) {
+  const legacy = /claude-haiku-4-5|claude-(opus|sonnet)-4-[0-5]\b|claude-3/.test(model);
+  return legacy ? anthropic.tools.webSearch_20250305(options) : anthropic.tools.webSearch_20260209(options);
+}
+
 function toAnswer(engine: Engine, res: RawResult, started: number): EngineAnswer {
   const seen = new Set<string>();
   const sources: SourceRef[] = [];
@@ -204,7 +213,7 @@ export async function runPrompt(engine: Engine, promptText: string, opts: RunPro
             model: anthropic(engine.model),
             tools: opts.webSearch
               ? {
-                  web_search: anthropic.tools.webSearch_20260209({
+                  web_search: anthropicWebSearch(engine.model, {
                     maxUses,
                     userLocation: { type: "approximate", country: opts.country, timezone: TIMEZONES[opts.country] },
                   }),

@@ -1,5 +1,5 @@
 import { start } from "workflow/api";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { hasApiKey, supportsMode } from "@/lib/engines";
 import { planRun, type Task } from "@/lib/runs";
@@ -80,4 +80,30 @@ export async function appendEngineToRun(runId: string, engineId: string) {
     .where(eq(schema.runs.id, runId));
   const started = await start(runWorkflow, [runId, tasks, project.costCapEur / USD_TO_EUR]);
   return { runId, engineId, tasks: tasks.length, workflowRunId: started.runId };
+}
+
+/**
+ * Rejoue les tâches en erreur d'un run (toutes, ou celles d'un moteur) : supprime les résultats en erreur,
+ * corrige les compteurs, puis relance le workflow sur ces seules tâches.
+ */
+export async function retryFailedTasks(runId: string, engineId?: string) {
+  const db = await getDb();
+  const run = await db.query.runs.findFirst({ where: (r, { eq }) => eq(r.id, runId) });
+  if (!run) throw new Error("Run introuvable");
+  if (run.status === "running") throw new Error("Le run est en cours");
+  const failed = await db.query.results.findMany({
+    where: and(eq(schema.results.runId, runId), isNotNull(schema.results.error), engineId ? eq(schema.results.engineId, engineId) : undefined),
+    columns: { id: true, promptId: true, engineId: true, repeatIndex: true },
+  });
+  if (failed.length === 0) return { retried: 0, workflowRunId: null };
+  await db.delete(schema.results).where(sql`${schema.results.id} in ${failed.map((f) => f.id)}`);
+  await db
+    .update(schema.runs)
+    .set({ status: "running", error: null, finishedAt: null, doneCount: sql`${schema.runs.doneCount} - ${failed.length}`, errorCount: sql`${schema.runs.errorCount} - ${failed.length}` })
+    .where(eq(schema.runs.id, runId));
+  const project = await db.query.projects.findFirst({ where: (p, { eq }) => eq(p.id, run.projectId) });
+  const costCapUsd = (project?.costCapEur ?? 5) / USD_TO_EUR;
+  const tasks = failed.map((f) => ({ promptId: f.promptId, engineId: f.engineId, repeatIndex: f.repeatIndex }));
+  const wf = await start(runWorkflow, [runId, tasks, costCapUsd]);
+  return { retried: tasks.length, workflowRunId: wf.runId };
 }
